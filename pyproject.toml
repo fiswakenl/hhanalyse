@@ -10,5 +10,6 @@ dependencies = [
     "pydantic",
     "python-dotenv",
     "beautifulsoup4",
-    "lxml"
+    "lxml",
+    "ipykernel>=6.30.1",
 ]
