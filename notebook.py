@@ -58,6 +58,20 @@ with open('unique_job_titles.txt', 'w', encoding='utf-8') as f:
 
 print("Список с количеством сохранен в файл unique_job_titles.txt")
 print("Можете отредактировать файл, удалив ненужные строки")
+print("\n" + "="*60)
+print("СЛЕДУЮЩИЕ ШАГИ:")
+print("1. Откройте файл unique_job_titles.txt")
+print("2. Скопируйте нужные названия вакансий")
+print("3. Создайте файл unique_job_titles_filter.txt с отобранными названиями")
+print("4. Запустите следующие ячейки для фильтрации и анализа")
+print("="*60)
+
+# %%
+# ШАГИ АНАЛИЗА:
+# 1. Сначала запустите ячейки выше, чтобы получить файл unique_job_titles.txt
+# 2. Скопируйте нужные названия из unique_job_titles.txt в файл unique_job_titles_filter.txt
+# 3. Запустите эту ячейку для фильтрации
+# 4. Запустите ячейки анализа ниже
 
 # %%
 # Фильтруем вакансии по списку из файла unique_job_titles_filter.txt
@@ -131,55 +145,59 @@ except Exception as e:
     print(f"Ошибка при обработке: {e}")
 
 # %%
-# Анализ отфильтрованных вакансий
-# Загружаем отфильтрованные данные для анализа
+# === БЛОК АНАЛИЗА ОТФИЛЬТРОВАННЫХ ДАННЫХ ===
+# Запускайте эти ячейки только после создания filtered_vacancies_*.csv
+
+# %%
+# 1. Загрузка отфильтрованных данных
+import glob
+
 try:
     # Находим последний созданный файл фильтрованных вакансий
-    import glob
     filtered_files = glob.glob('filtered_vacancies_*.csv')
     if filtered_files:
         latest_file = max(filtered_files, key=lambda x: x.split('_')[-1].replace('.csv', ''))
         filtered_df = pd.read_csv(latest_file)
         print(f"Загружен файл: {latest_file}")
         print(f"Количество отфильтрованных вакансий: {len(filtered_df)}")
-        
-        # Анализ количества вакансий по названиям
-        print("\n=== АНАЛИЗ ПО НАЗВАНИЯМ ВАКАНСИЙ ===")
-        job_title_counts = filtered_df['Название'].value_counts()
-        
-        print(f"Уникальных названий: {len(job_title_counts)}")
-        print(f"Топ-20 самых популярных названий:")
-        for i, (title, count) in enumerate(job_title_counts.head(20).items(), 1):
-            print(f"{i:2d}. {title:<60} | {count:3d} ваканси{'я' if count == 1 else 'й' if count < 5 else 'й'}")
-        
-        # Группировка по ключевым технологиям
-        print(f"\n=== ГРУППИРОВКА ПО ТЕХНОЛОГИЯМ ===")
-        
-        # Анализ по технологиям
-        tech_analysis = {
-            'React': filtered_df[filtered_df['Название'].str.contains('React', case=False, na=False)],
-            'Vue': filtered_df[filtered_df['Название'].str.contains('Vue', case=False, na=False)],
-            'Angular': filtered_df[filtered_df['Название'].str.contains('Angular', case=False, na=False)],
-            'Node.js': filtered_df[filtered_df['Название'].str.contains('Node', case=False, na=False)],
-            'JavaScript': filtered_df[filtered_df['Название'].str.contains('JavaScript|JS-', case=False, na=False)],
-            'Frontend (общие)': filtered_df[filtered_df['Название'].str.contains('Frontend|Front-end|Фронтенд', case=False, na=False)],
-            'HTML/CSS': filtered_df[filtered_df['Название'].str.contains('HTML|верстальщик', case=False, na=False)]
-        }
-        
-        for tech, df_tech in tech_analysis.items():
-            if len(df_tech) > 0:
-                print(f"{tech:<20} | {len(df_tech):3d} вакансий ({len(df_tech)/len(filtered_df)*100:.1f}%)")
-        
     else:
         print("Файлы с отфильтрованными вакансиями не найдены!")
+        print("Сначала запустите ячейку с фильтрацией выше")
         
 except Exception as e:
     print(f"Ошибка при загрузке отфильтрованных данных: {e}")
 
 # %%
-# Анализ по компаниям
+# 2. Анализ по названиям вакансий
 if 'filtered_df' in locals():
-    print("\n=== АНАЛИЗ ПО КОМПАНИЯМ ===")
+    print("=== АНАЛИЗ ПО НАЗВАНИЯМ ВАКАНСИЙ ===")
+    job_title_counts = filtered_df['Название'].value_counts()
+    
+    print(f"Уникальных названий: {len(job_title_counts)}")
+    print(f"Топ-20 самых популярных названий:")
+    for i, (title, count) in enumerate(job_title_counts.head(20).items(), 1):
+        print(f"{i:2d}. {title:<60} | {count:3d} ваканси{'я' if count == 1 else 'й' if count < 5 else 'й'}")
+    
+    # Группировка по ключевым технологиям
+    print(f"\n=== ГРУППИРОВКА ПО ТЕХНОЛОГИЯМ ===")
+    tech_analysis = {
+        'React': filtered_df[filtered_df['Название'].str.contains('React', case=False, na=False)],
+        'Vue': filtered_df[filtered_df['Название'].str.contains('Vue', case=False, na=False)],
+        'Angular': filtered_df[filtered_df['Название'].str.contains('Angular', case=False, na=False)],
+        'Node.js': filtered_df[filtered_df['Название'].str.contains('Node', case=False, na=False)],
+        'JavaScript': filtered_df[filtered_df['Название'].str.contains('JavaScript|JS-', case=False, na=False)],
+        'Frontend (общие)': filtered_df[filtered_df['Название'].str.contains('Frontend|Front-end|Фронтенд', case=False, na=False)],
+        'HTML/CSS': filtered_df[filtered_df['Название'].str.contains('HTML|верстальщик', case=False, na=False)]
+    }
+    
+    for tech, df_tech in tech_analysis.items():
+        if len(df_tech) > 0:
+            print(f"{tech:<20} | {len(df_tech):3d} вакансий ({len(df_tech)/len(filtered_df)*100:.1f}%)")
+
+# %%
+# 3. Анализ по компаниям
+if 'filtered_df' in locals():
+    print("=== АНАЛИЗ ПО КОМПАНИЯМ ===")
     company_counts = filtered_df['Компания'].value_counts()
     
     print(f"Количество уникальных компаний: {len(company_counts)}")
@@ -201,9 +219,9 @@ if 'filtered_df' in locals():
         print(f"{label:<20} | {count:3d} компаний ({percentage:.1f}%)")
 
 # %%
-# Анализ зарплат
+# 4. Анализ зарплат
 if 'filtered_df' in locals():
-    print("\n=== АНАЛИЗ ЗАРПЛАТ ===")
+    print("=== АНАЛИЗ ЗАРПЛАТ ===")
     
     # Проверяем наличие колонок с зарплатами
     salary_columns = [col for col in filtered_df.columns if 'зарплат' in col.lower() or 'salary' in col.lower()]
@@ -257,9 +275,9 @@ if 'filtered_df' in locals():
             print(f"{currency}: {count} вакансий ({count/len(filtered_df)*100:.1f}%)")
 
 # %%
-# Анализ географии (города)
+# 5. Анализ географии (города)
 if 'filtered_df' in locals():
-    print("\n=== АНАЛИЗ ПО ГОРОДАМ ===")
+    print("=== АНАЛИЗ ПО ГОРОДАМ ===")
     
     # Ищем колонки с информацией о местоположении
     location_columns = [col for col in filtered_df.columns if any(word in col.lower() for word in ['город', 'регион', 'location', 'адрес'])]
@@ -305,9 +323,9 @@ if 'filtered_df' in locals():
                 break
 
 # %%
-# Анализ опыта/уровня разработчиков
+# 6. Анализ опыта/уровня разработчиков
 if 'filtered_df' in locals():
-    print("\n=== АНАЛИЗ ПО ОПЫТУ/УРОВНЮ ===")
+    print("=== АНАЛИЗ ПО ОПЫТУ/УРОВНЮ ===")
     
     # Извлекаем информацию об уровне из названий вакансий
     level_analysis = {
