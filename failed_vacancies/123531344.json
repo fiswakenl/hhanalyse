@@ -1,0 +1,154 @@
+{
+  "vacancy_id": "123531344",
+  "error": "1 validation error for Vacancy\nemployer.id\n  Field required [type=missing, input_value={'name': 'Крупный ...нд', 'trusted': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.11/v/missing",
+  "timestamp": "2025-08-09T00:16:53.929239",
+  "data": {
+    "id": "123531344",
+    "premium": false,
+    "billing_type": {
+      "id": "standard",
+      "name": "Стандарт"
+    },
+    "relations": [],
+    "name": "Middle Frontend-разработчик React",
+    "insider_interview": null,
+    "response_letter_required": false,
+    "area": {
+      "id": "1",
+      "name": "Москва",
+      "url": "https://api.hh.ru/areas/1"
+    },
+    "salary": {
+      "from": null,
+      "to": 170000,
+      "currency": "RUR",
+      "gross": false
+    },
+    "salary_range": {
+      "from": null,
+      "to": 170000,
+      "currency": "RUR",
+      "gross": false,
+      "mode": {
+        "id": "MONTH",
+        "name": "За месяц"
+      },
+      "frequency": {
+        "id": "TWICE_PER_MONTH",
+        "name": "Два раза в месяц"
+      }
+    },
+    "type": {
+      "id": "anonymous",
+      "name": "Анонимная"
+    },
+    "address": null,
+    "allow_messages": true,
+    "experience": {
+      "id": "between3And6",
+      "name": "От 3 до 6 лет"
+    },
+    "schedule": {
+      "id": "remote",
+      "name": "Удаленная работа"
+    },
+    "employment": {
+      "id": "full",
+      "name": "Полная занятость"
+    },
+    "department": null,
+    "show_contacts": false,
+    "contacts": null,
+    "description": "<p><strong>Чем предстоит тебе заниматься?</strong></p> <ul> <li>Разработка и поддержка пользовательских интерфейсов с использованием React</li> <li>Оптимизация производительности и кроссбраузерная совместимость</li> <li>Разработка компонентов по принципам модульности и повторного использования</li> <li>Взаимодействие с дизайнерами, бэкенд-разработчиками и другими участниками команды</li> <li>Участие в код-ревью и принятии архитектурных решений</li> </ul> <p><strong>Требования:</strong></p> <ul> <li>Наличие коммерческого опыта (будет преимуществом, но не обязательно)</li> <li> <p>Опыт работы с TypeScript</p> </li> <li> <p>Отличное знание JavaScript (ES6+), понимание принципов работы виртуального DOM</p> </li> <li> <p>Опыт разработки на React, Next.js</p> </li> <li> <p>Опыт работы с HTML5, CSS3, SCSS/LESS, адаптивной и кроссбраузерной вёрсткой</p> </li> <li> <p>Понимание принципов SPA и клиент-серверного взаимодействия</p> </li> <li> <p>Знание систем контроля версий (Git)</p> </li> </ul> <p>Будет плюсом:</p> <p>- Опыт разработки backend приложений</p> <p>- Знание SQL</p> <p><strong>Что мы предлагаем взамен?</strong><br /><br />— Официальное оформление по ТК РФ</p> <p>— Оплачиваемый отпуск, 5 DAY OFF</p> <ul> <li>Удаленный формат работы</li> <li>Насыщенная корпоративная культура, компенсация спорта, подарки на каждый день рождения и праздники</li> </ul>",
+    "branded_description": null,
+    "vacancy_constructor_template": null,
+    "key_skills": [
+      {
+        "name": "JavaScript"
+      },
+      {
+        "name": "TypeScript"
+      },
+      {
+        "name": "Git"
+      },
+      {
+        "name": "React"
+      },
+      {
+        "name": "HTML5"
+      },
+      {
+        "name": "Код-ревью"
+      },
+      {
+        "name": "Next.js"
+      },
+      {
+        "name": "Frontend"
+      }
+    ],
+    "accept_handicapped": false,
+    "accept_kids": false,
+    "age_restriction": null,
+    "archived": false,
+    "response_url": null,
+    "specializations": [],
+    "professional_roles": [
+      {
+        "id": "96",
+        "name": "Программист, разработчик"
+      }
+    ],
+    "code": null,
+    "hidden": false,
+    "quick_responses_allowed": false,
+    "driver_license_types": [],
+    "accept_incomplete_resumes": false,
+    "employer": {
+      "name": "Крупный косметический бренд",
+      "trusted": true
+    },
+    "published_at": "2025-08-01T16:06:48+0300",
+    "created_at": "2025-08-01T16:06:48+0300",
+    "initial_created_at": "2025-08-01T16:06:48+0300",
+    "negotiations_url": null,
+    "suitable_resumes_url": null,
+    "apply_alternate_url": "https://hh.ru/applicant/vacancy_response?vacancyId=123531344",
+    "has_test": false,
+    "test": null,
+    "alternate_url": "https://hh.ru/vacancy/123531344",
+    "working_days": [],
+    "working_time_intervals": [],
+    "working_time_modes": [],
+    "accept_temporary": false,
+    "languages": [],
+    "approved": true,
+    "employment_form": {
+      "id": "FULL",
+      "name": "Полная"
+    },
+    "fly_in_fly_out_duration": [],
+    "internship": false,
+    "night_shifts": false,
+    "work_format": [
+      {
+        "id": "REMOTE",
+        "name": "Удалённо"
+      }
+    ],
+    "work_schedule_by_days": [
+      {
+        "id": "FIVE_ON_TWO_OFF",
+        "name": "5/2"
+      }
+    ],
+    "working_hours": [
+      {
+        "id": "HOURS_8",
+        "name": "8 часов"
+      }
+    ],
+    "closed_for_applicants": false
+  }
+}
