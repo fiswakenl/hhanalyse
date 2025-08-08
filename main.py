@@ -5,6 +5,10 @@ import httpx
 import pandas as pd
 import time
 
+DEFAULT_SEARCH_QUERY = '''
+(react or vue) AND ( NOT fullstack NOT full-stack NOT native NOT junior)
+'''
+
 
 class Vacancy(BaseModel):
     id: str
@@ -44,7 +48,7 @@ class Vacancy(BaseModel):
         )
 
 
-def fetch_vacancies(text: str = "(react or vue) AND ( NOT fullstack NOT full-stack NOT native NOT junior)") -> List[Vacancy]:
+def fetch_vacancies(text: str = DEFAULT_SEARCH_QUERY) -> List[Vacancy]:
     base_url = "https://api.hh.ru/vacancies"
     vacancies = []
     page = 0

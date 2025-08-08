@@ -4,7 +4,7 @@ import numpy as np
 
 # %%
 # Читаем CSV файл с вакансиями
-df = pd.read_csv('vacancies_20250808_164811.csv')
+df = pd.read_csv('vacancies_20250808_181211.csv')
 print(f"Загружено {len(df)} записей")
 print(f"Колонки: {list(df.columns)}")
 df.head()
@@ -41,4 +41,22 @@ print(companies.head(20))
 job_titles = df_unique['Название'].value_counts()
 print(f"Топ-20 названий вакансий:")
 print(job_titles.head(20))
+
+# %%
+# Сохраняем уникальные названия вакансий с количеством в txt файл
+print(f"Всего уникальных названий: {len(job_titles)}")
+
+# Сохраняем в файл с количеством в нужном формате
+with open('unique_job_titles.txt', 'w', encoding='utf-8') as f:
+    f.write("[\n")
+    for i, (title, count) in enumerate(job_titles.items()):
+        if i == len(job_titles) - 1:
+            f.write(f"    '{title}' # {count}\n")
+        else:
+            f.write(f"    '{title}' # {count},\n")
+    f.write("]\n")
+
+print("Список с количеством сохранен в файл unique_job_titles.txt")
+print("Можете отредактировать файл, удалив ненужные строки")
+
 # %%
