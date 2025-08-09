@@ -18,4 +18,5 @@ dependencies = [
     "markdownify",
     "duckdb>=1.3.2",
     "pyarrow>=21.0.0",
+    "polars>=1.32.2",
 ]
