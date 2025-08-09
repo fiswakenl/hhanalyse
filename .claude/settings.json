@@ -1,6 +1,6 @@
-{
-  "env": {
-    "HTTP_PROXY": "http://artur:arturpas@93.183.70.216:1080",
-    "HTTPS_PROXY": "http://artur:arturpas@93.183.70.216:1080"
-  }
-}
+// {
+//   "env": {
+//     "HTTP_PROXY": "http://artur:arturpas@93.183.70.216:1080",
+//     "HTTPS_PROXY": "http://artur:arturpas@93.183.70.216:1080"
+//   }
+// }
