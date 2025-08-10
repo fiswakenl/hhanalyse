@@ -29,13 +29,37 @@ CHART_CONFIG = {
         'title': 'Навыки и технологии',
         'tab_id': 'skills-tab',
         'chart_func': lambda df: create_array_field_chart(df, 'key_skills', 'Топ навыки и технологии', normalize_skill),
-        'filter_field': None  # Особый случай - используем отдельную фильтрацию
+        'filter_field': 'key_skills'
     },
-    'arrays': {
-        'title': 'Массивы данных',
-        'tab_id': 'arrays-tab',
-        'chart_func': 'dynamic',  # Динамическая функция
-        'filter_field': None
+    'fe_framework': {
+        'title': 'Фронтенд-фреймворки',
+        'tab_id': 'fe-framework-tab',
+        'chart_func': lambda df: create_array_field_chart(df, 'fe_framework', 'Топ фронтенд-фреймворки'),
+        'filter_field': 'fe_framework'
+    },
+    'state_mgmt': {
+        'title': 'Управление состоянием',
+        'tab_id': 'state-mgmt-tab',
+        'chart_func': lambda df: create_array_field_chart(df, 'state_mgmt', 'Библиотеки управления состоянием'),
+        'filter_field': 'state_mgmt'
+    },
+    'styling': {
+        'title': 'Стилизация',
+        'tab_id': 'styling-tab',
+        'chart_func': lambda df: create_array_field_chart(df, 'styling', 'Технологии стилизации'),
+        'filter_field': 'styling'
+    },
+    'testing': {
+        'title': 'Тестирование',
+        'tab_id': 'testing-tab',
+        'chart_func': lambda df: create_array_field_chart(df, 'testing', 'Фреймворки тестирования'),
+        'filter_field': 'testing'
+    },
+    'api_proto': {
+        'title': 'API протоколы',
+        'tab_id': 'api-proto-tab',
+        'chart_func': lambda df: create_array_field_chart(df, 'api_proto', 'API протоколы и форматы'),
+        'filter_field': 'api_proto'
     },
     'salary': {
         'title': 'Зарплаты',
@@ -45,21 +69,18 @@ CHART_CONFIG = {
     }
 }
 
-# Список массивных полей доступных для анализа
-ARRAY_FIELDS = {
-    'key_skills': 'Навыки и технологии',
-    'fe_framework': 'Фронтенд-фреймворки',
-    'state_mgmt': 'Управление состоянием',
-    'styling': 'Стилизация',
-    'testing': 'Тестирование',
-    'api_proto': 'API протоколы'
-}
 
 # Фильтры для sidebar
 FILTERS_CONFIG = [
     {'id': 'company-filter', 'label': 'Тип компании', 'field': 'company_type'},
     {'id': 'domain-filter', 'label': 'Бизнес-домен', 'field': 'business_domain'},
-    {'id': 'experience-filter', 'label': 'Опыт работы', 'field': 'experience_name'}
+    {'id': 'experience-filter', 'label': 'Опыт работы', 'field': 'experience_name'},
+    {'id': 'skills-filter', 'label': 'Навыки и технологии', 'field': 'key_skills', 'type': 'array'},
+    {'id': 'fe-framework-filter', 'label': 'Фронтенд-фреймворки', 'field': 'fe_framework', 'type': 'array'},
+    {'id': 'state-mgmt-filter', 'label': 'Управление состоянием', 'field': 'state_mgmt', 'type': 'array'},
+    {'id': 'styling-filter', 'label': 'Стилизация', 'field': 'styling', 'type': 'array'},
+    {'id': 'testing-filter', 'label': 'Тестирование', 'field': 'testing', 'type': 'array'},
+    {'id': 'api-proto-filter', 'label': 'API протоколы', 'field': 'api_proto', 'type': 'array'}
 ]
 
 # Функция для получения уникальных значений из массивного поля
@@ -87,15 +108,25 @@ def generate_filters():
     
     for filter_config in FILTERS_CONFIG:
         field = filter_config['field']
-        unique_values = df[field].dropna().unique()
+        filter_type = filter_config.get('type', 'single')
+        
+        if filter_type == 'array':
+            # Для массивных полей получаем уникальные значения
+            unique_values = get_unique_array_values(field, limit=30)
+        else:
+            # Для обычных полей
+            unique_values = df[field].dropna().unique()
+        
+        options = [{"label": "Все", "value": "all"}]
+        for val in unique_values:
+            if pd.notna(val) and str(val).strip() != '' and str(val) != 'nan':
+                options.append({"label": str(val), "value": str(val)})
         
         filters.extend([
             html.H6(filter_config['label']),
             dcc.Dropdown(
                 id=filter_config['id'],
-                options=[{"label": "Все", "value": "all"}] + 
-                        [{"label": str(val), "value": str(val)} for val in unique_values 
-                         if pd.notna(val) and str(val).strip() != '' and str(val) != 'nan'],
+                options=options,
                 value="all",
                 clearable=False
             ),
@@ -113,7 +144,7 @@ def generate_tabs():
     return tabs
 
 # Универсальная генерация контента табов
-def generate_tab_content(active_tab, filtered_df, array_field=None):
+def generate_tab_content(active_tab, filtered_df):
     """Генерирует контент для активного таба на основе конфигурации"""
     
     # Находим конфигурацию для активного таба
@@ -126,28 +157,9 @@ def generate_tab_content(active_tab, filtered_df, array_field=None):
     if not config:
         return html.Div("Таб не найден")
     
-    # Специальная обработка для массивных данных
-    if active_tab == "arrays-tab":
-        if array_field and array_field in ARRAY_FIELDS:
-            field_title = ARRAY_FIELDS[array_field]
-            chart = create_array_field_chart(filtered_df, array_field, field_title)
-            chart_id = "arrays-chart"
-        else:
-            return dbc.Row([
-                dbc.Col([
-                    html.Div([
-                        html.H4("Анализ массивных полей"),
-                        html.P("Выберите поле для анализа в фильтрах слева."),
-                        html.Ul([
-                            html.Li(f"{label} ({field})") for field, label in ARRAY_FIELDS.items()
-                        ])
-                    ])
-                ], width=12)
-            ])
-    else:
-        # Обычная генерация графика по конфигурации
-        chart = config['chart_func'](filtered_df)
-        chart_id = f"{active_tab.replace('-tab', '')}-chart"
+    # Генерация графика по конфигурации
+    chart = config['chart_func'](filtered_df)
+    chart_id = f"{active_tab.replace('-tab', '')}-chart"
     
     return dbc.Row([
         dbc.Col([
@@ -438,24 +450,6 @@ app.layout = dbc.Container([
                     ),
                     html.Br(),
                     
-                    html.H6("Фильтр по массивным полям"),
-                    html.Div([
-                        dcc.Dropdown(
-                            id="array-field-selector",
-                            options=[{"label": label, "value": field} for field, label in ARRAY_FIELDS.items()],
-                            value="key_skills",
-                            clearable=False,
-                            placeholder="Выберите поле"
-                        ),
-                        html.Br(),
-                        dcc.Dropdown(
-                            id="array-value-filter",
-                            options=[],
-                            value=None,
-                            placeholder="Выберите значение для фильтрации"
-                        )
-                    ]),
-                    html.Br(),
                     
                     dbc.Button("Сбросить все фильтры", id="reset-filters", color="secondary", size="sm"),
                     html.Hr(),
@@ -651,22 +645,10 @@ def create_salary_experience_chart(filtered_df):
         fig.update_layout(title="Ошибка загрузки данных", height=500)
         return fig
 
-# Функция для фильтрации по массивному полю
-def filter_by_array_field(df_to_filter, field_name, target_value):
-    """Фильтрует DataFrame по значению в массивном поле"""
-    if not target_value or field_name not in df_to_filter.columns:
-        return df_to_filter
-    
-    # Создаем маску для строк, содержащих нужное значение
-    mask = []
-    for array_data in df_to_filter[field_name]:
-        parsed_items = parse_array_field(array_data)
-        mask.append(target_value in parsed_items)
-    
-    return df_to_filter[mask]
 
 # Функция для фильтрации данных
-def filter_data(company_type, domain, experience, salary_range, array_field=None, array_value=None):
+def filter_data(company_type, domain, experience, salary_range, skills_filter=None, fe_framework_filter=None, 
+                state_mgmt_filter=None, styling_filter=None, testing_filter=None, api_proto_filter=None):
     try:
         filtered_df = df.copy()
         
@@ -691,27 +673,43 @@ def filter_data(company_type, domain, experience, salary_range, array_field=None
                 )
                 filtered_df = filtered_df[salary_filter]
         
-        # Фильтрация по массивному полю
-        if array_field and array_value:
-            filtered_df = filter_by_array_field(filtered_df, array_field, array_value)
+        # Фильтрация по массивным полям
+        if skills_filter and skills_filter != "all":
+            filtered_df = filter_by_array_field(filtered_df, 'key_skills', skills_filter)
+        
+        if fe_framework_filter and fe_framework_filter != "all":
+            filtered_df = filter_by_array_field(filtered_df, 'fe_framework', fe_framework_filter)
+            
+        if state_mgmt_filter and state_mgmt_filter != "all":
+            filtered_df = filter_by_array_field(filtered_df, 'state_mgmt', state_mgmt_filter)
+            
+        if styling_filter and styling_filter != "all":
+            filtered_df = filter_by_array_field(filtered_df, 'styling', styling_filter)
+            
+        if testing_filter and testing_filter != "all":
+            filtered_df = filter_by_array_field(filtered_df, 'testing', testing_filter)
+            
+        if api_proto_filter and api_proto_filter != "all":
+            filtered_df = filter_by_array_field(filtered_df, 'api_proto', api_proto_filter)
         
         return filtered_df
     except Exception as e:
         print(f"Error in filter_data: {e}")
         return df.copy()  # Возвращаем исходные данные в случае ошибки
 
-# Callback для обновления значений в dropdown массивных полей
-@app.callback(
-    Output("array-value-filter", "options"),
-    Input("array-field-selector", "value"),
-    prevent_initial_call=False
-)
-def update_array_values(selected_field):
-    if not selected_field:
-        return []
+# Функция для фильтрации по массивному полю
+def filter_by_array_field(df_to_filter, field_name, target_value):
+    """Фильтрует DataFrame по значению в массивном поле"""
+    if not target_value or field_name not in df_to_filter.columns:
+        return df_to_filter
     
-    values = get_unique_array_values(selected_field)
-    return [{"label": value, "value": value} for value in values]
+    # Создаем маску для строк, содержащих нужное значение
+    mask = []
+    for array_data in df_to_filter[field_name]:
+        parsed_items = parse_array_field(array_data)
+        mask.append(target_value in parsed_items)
+    
+    return df_to_filter[mask]
 
 # Callback для обновления контента и статистики
 @app.callback(
@@ -722,12 +720,18 @@ def update_array_values(selected_field):
      Input("domain-filter", "value"),
      Input("experience-filter", "value"),
      Input("salary-filter", "value"),
-     Input("array-field-selector", "value"),
-     Input("array-value-filter", "value"),
+     Input("skills-filter", "value"),
+     Input("fe-framework-filter", "value"),
+     Input("state-mgmt-filter", "value"),
+     Input("styling-filter", "value"),
+     Input("testing-filter", "value"),
+     Input("api-proto-filter", "value"),
      Input("reset-filters", "n_clicks")],
     prevent_initial_call=False
 )
-def update_content(active_tab, company_type, domain, experience, salary_range, array_field, array_value, reset_clicks):
+def update_content(active_tab, company_type, domain, experience, salary_range, skills_filter, 
+                  fe_framework_filter, state_mgmt_filter, styling_filter, testing_filter, 
+                  api_proto_filter, reset_clicks):
     try:
         ctx = callback_context
         
@@ -737,11 +741,17 @@ def update_content(active_tab, company_type, domain, experience, salary_range, a
             domain = "all"
             experience = "all"
             salary_range = [SALARY_MIN, SALARY_MAX]
-            array_field = "key_skills"
-            array_value = None
+            skills_filter = "all"
+            fe_framework_filter = "all"
+            state_mgmt_filter = "all"
+            styling_filter = "all"
+            testing_filter = "all"
+            api_proto_filter = "all"
         
         # Фильтруем данные
-        filtered_df = filter_data(company_type, domain, experience, salary_range, array_field, array_value)
+        filtered_df = filter_data(company_type, domain, experience, salary_range, skills_filter, 
+                                fe_framework_filter, state_mgmt_filter, styling_filter, 
+                                testing_filter, api_proto_filter)
         
         # Статистика фильтрации с защитой от ошибок
         try:
@@ -757,7 +767,7 @@ def update_content(active_tab, company_type, domain, experience, salary_range, a
         ]
         
         # Универсальная генерация контента по конфигурации
-        content = generate_tab_content(active_tab, filtered_df, array_field)
+        content = generate_tab_content(active_tab, filtered_df)
         
         return content, stats
     
@@ -777,15 +787,20 @@ def update_content(active_tab, company_type, domain, experience, salary_range, a
      Output("domain-filter", "value"),
      Output("experience-filter", "value"),
      Output("salary-filter", "value"),
-     Output("array-field-selector", "value"),
-     Output("array-value-filter", "value")],
+     Output("skills-filter", "value"),
+     Output("fe-framework-filter", "value"),
+     Output("state-mgmt-filter", "value"),
+     Output("styling-filter", "value"),
+     Output("testing-filter", "value"),
+     Output("api-proto-filter", "value")],
     Input("reset-filters", "n_clicks"),
     prevent_initial_call=True
 )
 def reset_filters(n_clicks):
     if n_clicks:
-        return "all", "all", "all", [SALARY_MIN, SALARY_MAX], "key_skills", None
-    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return "all", "all", "all", [SALARY_MIN, SALARY_MAX], "all", "all", "all", "all", "all", "all"
+    return (dash.no_update, dash.no_update, dash.no_update, dash.no_update, 
+            dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update)
 
 if __name__ == "__main__":
     app.run(debug=True, port=8050)
