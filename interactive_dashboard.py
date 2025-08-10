@@ -61,6 +61,18 @@ CHART_CONFIG = {
         'chart_func': lambda df: create_array_field_chart(df, 'api_proto', 'API протоколы и форматы'),
         'filter_field': 'api_proto'
     },
+    'experience': {
+        'title': 'Опыт работы',
+        'tab_id': 'experience-tab',
+        'chart_func': lambda df: create_single_field_chart(df, 'experience_name', 'Распределение вакансий по категориям опыта'),
+        'filter_field': 'experience_name'
+    },
+    'employers': {
+        'title': 'Компании',
+        'tab_id': 'employers-tab',
+        'chart_func': lambda df: create_single_field_chart(df, 'employer_name', 'Топ компании по количеству вакансий', top_n=20),
+        'filter_field': 'employer_name'
+    },
     'salary': {
         'title': 'Зарплаты',
         'tab_id': 'salary-tab', 
@@ -75,6 +87,7 @@ FILTERS_CONFIG = [
     {'id': 'company-filter', 'label': 'Тип компании', 'field': 'company_type'},
     {'id': 'domain-filter', 'label': 'Бизнес-домен', 'field': 'business_domain'},
     {'id': 'experience-filter', 'label': 'Опыт работы', 'field': 'experience_name'},
+    {'id': 'employer-filter', 'label': 'Компания', 'field': 'employer_name'},
     {'id': 'skills-filter', 'label': 'Навыки и технологии', 'field': 'key_skills', 'type': 'array'},
     {'id': 'fe-framework-filter', 'label': 'Фронтенд-фреймворки', 'field': 'fe_framework', 'type': 'array'},
     {'id': 'state-mgmt-filter', 'label': 'Управление состоянием', 'field': 'state_mgmt', 'type': 'array'},
@@ -101,6 +114,52 @@ def get_unique_array_values(field_name, limit=50):
     values_counts = pd.Series(all_values).value_counts()
     return values_counts.head(limit).index.tolist()
 
+# Функция для получения опций с подсчетом для массивных полей
+def get_array_field_options_with_counts(field_name, limit=30):
+    """Получает опции для массивного поля с подсчетом популярности"""
+    if field_name not in df.columns:
+        return []
+    
+    all_values = []
+    for array_data in df[field_name].dropna():
+        parsed_items = parse_array_field(array_data)
+        all_values.extend(parsed_items)
+    
+    if not all_values:
+        return []
+    
+    # Подсчитываем частоту и сортируем по убыванию
+    values_counts = pd.Series(all_values).value_counts().head(limit)
+    
+    options = []
+    for value, count in values_counts.items():
+        if pd.notna(value) and str(value).strip() != '' and str(value) != 'nan':
+            options.append({
+                "label": f"{value} ({count})",
+                "value": str(value)
+            })
+    
+    return options
+
+# Функция для получения опций с подсчетом для обычных полей
+def get_single_field_options_with_counts(field_name):
+    """Получает опции для обычного поля с подсчетом популярности"""
+    if field_name not in df.columns:
+        return []
+    
+    # Подсчитываем частоту и сортируем по убыванию
+    values_counts = df[field_name].dropna().value_counts()
+    
+    options = []
+    for value, count in values_counts.items():
+        if pd.notna(value) and str(value).strip() != '' and str(value) != 'nan':
+            options.append({
+                "label": f"{value} ({count})",
+                "value": str(value)
+            })
+    
+    return options
+
 # Генерация фильтров
 def generate_filters():
     """Генерирует все фильтры для sidebar"""
@@ -111,17 +170,11 @@ def generate_filters():
         filter_type = filter_config.get('type', 'single')
         
         if filter_type == 'array':
-            # Для массивных полей получаем уникальные значения
-            unique_values = get_unique_array_values(field, limit=30)
+            # Для массивных полей получаем значения с их частотой
+            options = get_array_field_options_with_counts(field, limit=30)
         else:
-            # Для обычных полей
-            unique_values = df[field].dropna().unique()
-        
-        # Создаем опции без "Все" для multiselect
-        options = []
-        for val in unique_values:
-            if pd.notna(val) and str(val).strip() != '' and str(val) != 'nan':
-                options.append({"label": str(val), "value": str(val)})
+            # Для обычных полей получаем значения с их частотой
+            options = get_single_field_options_with_counts(field)
         
         filters.extend([
             html.H6(filter_config['label']),
@@ -649,7 +702,7 @@ def create_salary_experience_chart(filtered_df):
 
 
 # Функция для фильтрации данных
-def filter_data(company_type, domain, experience, salary_range, skills_filter=None, fe_framework_filter=None, 
+def filter_data(company_type, domain, experience, employer, salary_range, skills_filter=None, fe_framework_filter=None, 
                 state_mgmt_filter=None, styling_filter=None, testing_filter=None, api_proto_filter=None):
     try:
         filtered_df = df.copy()
@@ -663,6 +716,9 @@ def filter_data(company_type, domain, experience, salary_range, skills_filter=No
             
         if experience and len(experience) > 0:
             filtered_df = filtered_df[filtered_df['experience_name'].isin(experience)]
+            
+        if employer and len(employer) > 0:
+            filtered_df = filtered_df[filtered_df['employer_name'].isin(employer)]
             
         if salary_range and len(salary_range) == 2 and salary_range[0] is not None and salary_range[1] is not None:
             # Применяем фильтр зарплат только если диапазон отличается от полного диапазона
@@ -738,6 +794,7 @@ def filter_by_multiple_array_values(df_to_filter, field_name, target_values):
      Input("company-filter", "value"),
      Input("domain-filter", "value"),
      Input("experience-filter", "value"),
+     Input("employer-filter", "value"),
      Input("salary-filter", "value"),
      Input("skills-filter", "value"),
      Input("fe-framework-filter", "value"),
@@ -748,7 +805,7 @@ def filter_by_multiple_array_values(df_to_filter, field_name, target_values):
      Input("reset-filters", "n_clicks")],
     prevent_initial_call=False
 )
-def update_content(active_tab, company_type, domain, experience, salary_range, skills_filter, 
+def update_content(active_tab, company_type, domain, experience, employer, salary_range, skills_filter, 
                   fe_framework_filter, state_mgmt_filter, styling_filter, testing_filter, 
                   api_proto_filter, reset_clicks):
     try:
@@ -759,6 +816,7 @@ def update_content(active_tab, company_type, domain, experience, salary_range, s
             company_type = []
             domain = []
             experience = []
+            employer = []
             salary_range = [SALARY_MIN, SALARY_MAX]
             skills_filter = []
             fe_framework_filter = []
@@ -768,22 +826,34 @@ def update_content(active_tab, company_type, domain, experience, salary_range, s
             api_proto_filter = []
         
         # Фильтруем данные
-        filtered_df = filter_data(company_type, domain, experience, salary_range, skills_filter, 
+        filtered_df = filter_data(company_type, domain, experience, employer, salary_range, skills_filter, 
                                 fe_framework_filter, state_mgmt_filter, styling_filter, 
                                 testing_filter, api_proto_filter)
         
         # Статистика фильтрации с защитой от ошибок
         try:
-            avg_salary = filtered_df['salary_from_rub'].mean()
-            avg_salary_text = f"Средняя зарплата: {avg_salary:,.0f} ₽" if pd.notna(avg_salary) else "Нет данных о зарплате"
+            salary_data = filtered_df['salary_from_rub'].dropna()
+            if len(salary_data) > 0:
+                avg_salary = salary_data.mean()
+                median_salary = salary_data.median()
+                avg_salary_text = f"Средняя зарплата: {avg_salary:,.0f} ₽"
+                median_salary_text = f"Медианная зарплата: {median_salary:,.0f} ₽"
+            else:
+                avg_salary_text = "Нет данных о зарплате"
+                median_salary_text = ""
         except:
             avg_salary_text = "Нет данных о зарплате"
+            median_salary_text = ""
         
         stats = [
             html.H6("Статистика", className="text-primary"),
             html.P(f"Отфильтровано: {len(filtered_df)} из {len(df)} вакансий"),
-            html.P(avg_salary_text)
+            html.P(avg_salary_text),
         ]
+        
+        # Добавляем медианную зарплату если есть данные
+        if median_salary_text:
+            stats.append(html.P(median_salary_text))
         
         # Универсальная генерация контента по конфигурации
         content = generate_tab_content(active_tab, filtered_df)
@@ -805,6 +875,7 @@ def update_content(active_tab, company_type, domain, experience, salary_range, s
     [Output("company-filter", "value"),
      Output("domain-filter", "value"),
      Output("experience-filter", "value"),
+     Output("employer-filter", "value"),
      Output("salary-filter", "value"),
      Output("skills-filter", "value"),
      Output("fe-framework-filter", "value"),
@@ -817,8 +888,8 @@ def update_content(active_tab, company_type, domain, experience, salary_range, s
 )
 def reset_filters(n_clicks):
     if n_clicks:
-        return [], [], [], [SALARY_MIN, SALARY_MAX], [], [], [], [], [], []
-    return (dash.no_update, dash.no_update, dash.no_update, dash.no_update, 
+        return [], [], [], [], [SALARY_MIN, SALARY_MAX], [], [], [], [], [], []
+    return (dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update,
             dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update)
 
 if __name__ == "__main__":
