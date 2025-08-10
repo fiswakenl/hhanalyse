@@ -56,19 +56,19 @@ class TechnologyExtractor:
             "gemini": "google/gemini-flash-1.5",
             "qwen": "qwen/qwen-2.5-72b-instruct"
         }
-        print(f"💡 Доступные модели: {list(self.available_models.keys())}")
-        print(f"🤖 Используется: {model}")
+        print(f"Доступные модели: {list(self.available_models.keys())}")
+        print(f"Используется: {model}")
     
-    def load_existing_categories(self, df: pd.DataFrame, start_idx: int) -> Dict[str, List[str]]:
-        """Загружает существующие категории из уже обработанных записей для динамического пополнения."""
+    def load_existing_categories(self, df: pd.DataFrame) -> Dict[str, List[str]]:
+        """Загружает существующие категории из ВСЕХ уже обработанных записей для динамического пополнения."""
         categories = self.base_categories.copy()
         
-        # Находим уже обработанные записи (те что имеют колонку extracted_at)
+        # Находим ВСЕ уже обработанные записи из всего файла
         if 'extracted_at' in df.columns:
-            processed_df = df[df['extracted_at'].notna()].iloc[:start_idx]
+            processed_df = df[df['extracted_at'].notna()]
             
             if not processed_df.empty:
-                print(f"Найдено {len(processed_df)} уже обработанных записей, пополняю категории...")
+                print(f"Найдено {len(processed_df)} уже обработанных записей из всего файла, пополняю категории...")
                 
                 # Пополняем динамические категории (массивы)
                 for category in self.dynamic_categories:
@@ -86,15 +86,20 @@ class TechnologyExtractor:
                         
                         # Добавляем новые значения к базовым категориям
                         if existing_values:
+                            new_count = len(existing_values - set(self.base_categories[category]))
                             categories[category] = sorted(set(categories[category]) | existing_values)
-                            print(f"  {category}: +{len(existing_values - set(self.base_categories[category]))} новых значений")
+                            if new_count > 0:
+                                print(f"  {category}: +{new_count} новых значений (всего {len(categories[category])})")
                 
                 # Пополняем фиксированные категории (строки)
                 for category in self.fixed_categories:
                     if category in processed_df.columns:
                         existing_values = set(processed_df[category].dropna().unique())
                         if existing_values:
+                            new_count = len(existing_values - set(self.base_categories[category]))
                             categories[category] = sorted(set(categories[category]) | existing_values)
+                            if new_count > 0:
+                                print(f"  {category}: +{new_count} новых значений (всего {len(categories[category])})")
         
         return categories
     
@@ -115,9 +120,9 @@ class TechnologyExtractor:
                 "vacancy_id": str(vacancy.get('id', '')),
                 "name": vacancy.get('name', ''),
                 "employer_name": vacancy.get('employer_name', ''),
-                "key_skills": vacancy.get('key_skills', []),
-                "description": (vacancy.get('description_markdown', '') or vacancy.get('description', ''))[:1500],
-                "branded_description": (vacancy.get('branded_description_markdown', '') or vacancy.get('branded_description', ''))[:800]
+                "key_skills": list(vacancy.get('key_skills', [])) if vacancy.get('key_skills') is not None else [],
+                "description": (vacancy.get('description_markdown') or vacancy.get('description') or '')[:1500],
+                "branded_description": (vacancy.get('branded_description_markdown') or vacancy.get('branded_description') or '')[:800]
             }
             vacancies_data.append(vacancy_data)
         
@@ -205,8 +210,16 @@ class TechnologyExtractor:
                 )
                 
                 # Получаем ответ
-                llm_response = response.choices[0].message.content
-                print(f"Получен ответ длиной {len(llm_response)} символов")
+                if response.choices and response.choices[0].message:
+                    llm_response = response.choices[0].message.content
+                    if llm_response:
+                        print(f"Получен ответ длиной {len(llm_response)} символов")
+                    else:
+                        print("Получен пустой ответ от модели")
+                        continue
+                else:
+                    print("Не удалось получить ответ от модели")
+                    continue
                 
                 # Парсим ответ
                 extracted_data = self.parse_llm_response(llm_response)
@@ -309,7 +322,7 @@ class TechnologyExtractor:
             return []
     
     def process_range(self, start: int, end: int, input_path: str, output_path: str) -> None:
-        """Обрабатывает диапазон вакансий и сохраняет результаты."""
+        """Обрабатывает диапазон вакансий с checkpoint системой и динамическим обновлением категорий."""
         print(f"Загружаю данные из {input_path}...")
         
         # Загружаем исходный файл
@@ -329,9 +342,10 @@ class TechnologyExtractor:
         process_df = df.iloc[start:end].copy()
         print(f"Обрабатываю вакансии {start}-{end} ({len(process_df)} записей)")
         
-        # Загружаем существующие категории для динамического пополнения
-        print("Анализирую существующие категории...")
-        current_categories = self.load_existing_categories(df, start)
+        # Показываем статистику уже обработанных записей
+        if 'extracted_at' in df.columns:
+            already_processed = df['extracted_at'].notna().sum()
+            print(f"Уже обработано ранее: {already_processed} записей")
         
         # Разбиваем на батчи
         all_results = []
@@ -341,41 +355,63 @@ class TechnologyExtractor:
             batch_num = i // self.batch_size + 1
             batch_df = process_df.iloc[i:i + self.batch_size]
             
-            print(f"\n📦 Батч {batch_num}/{total_batches} (записи {start + i}-{start + i + len(batch_df) - 1})")
+            print(f"\\nБатч {batch_num}/{total_batches} (записи {start + i}-{start + i + len(batch_df) - 1})")
+            
+            # КРИТИЧНО: Перезагружаем файл с диска для получения свежих данных
+            if i > 0:  # После первого батча
+                print("Перезагружаю файл для получения свежих категорий...")
+                try:
+                    df = pd.read_parquet(input_path)  # Свежие данные с диска
+                except Exception as e:
+                    print(f"Ошибка перезагрузки файла: {e}")
+                    continue
+            
+            # Загружаем актуальные категории из ВСЕГО файла
+            print("Анализирую категории из всего файла...")
+            current_categories = self.load_existing_categories(df)
             
             # Конвертируем в список словарей для API
             batch_data = []
             for _, row in batch_df.iterrows():
-                batch_data.append(row.to_dict())
-            
-            # Обновляем категории перед каждым батчем (для динамического пополнения)
-            if i > 0:  # Обновляем после первого батча
-                current_categories = self.load_existing_categories(df, start + i)
+                row_dict = row.to_dict()
+                print(f"Обрабатываю vacancy_id: {row_dict.get('id', 'Unknown')}")
+                batch_data.append(row_dict)
             
             # Извлекаем данные через LLM с актуальными категориями
-            batch_results = self.extract_batch(batch_data, current_categories)
+            try:
+                batch_results = self.extract_batch(batch_data, current_categories)
+            except Exception as e:
+                print(f"Ошибка в extract_batch: {e}")
+                import traceback
+                traceback.print_exc()
+                batch_results = []
             
             if batch_results:
-                print(f"✅ Обработано {len(batch_results)} записей в батче {batch_num}")
+                print(f"Обработано {len(batch_results)} записей в батче {batch_num}")
                 all_results.extend(batch_results)
                 
-                # Сохраняем промежуточный результат в основной DataFrame
+                # Обновляем DataFrame новыми результатами
                 self._update_dataframe_with_results(df, batch_results, start + i)
                 
+                # CHECKPOINT: Сохраняем после каждого успешного батча
+                print("Сохраняю checkpoint...")
+                self.save_results(df, output_path)
+                
             else:
-                print(f"❌ Батч {batch_num} не удалось обработать")
+                print(f"Батч {batch_num} не удалось обработать")
             
             # Небольшая пауза между запросами
             time.sleep(1)
         
         if all_results:
-            print(f"\n🎉 Обработка завершена! Обработано {len(all_results)} записей")
+            print(f"\\nОбработка завершена! Обработано {len(all_results)} записей")
             
-            # Сохраняем обновленный файл
-            self.save_results(df, output_path)
-            print(f"Результаты сохранены в {output_path}")
+            # Финальная статистика
+            if 'extracted_at' in df.columns:
+                total_processed = df['extracted_at'].notna().sum()
+                print(f"Общий прогресс: {total_processed} из {len(df)} записей обработано")
         else:
-            print("\n❌ Не удалось обработать ни одной записи")
+            print("\\nНе удалось обработать ни одной записи")
     
     def _update_dataframe_with_results(self, df: pd.DataFrame, results: List[Dict], start_idx: int) -> None:
         """Обновляет DataFrame новыми извлеченными данными."""
@@ -418,12 +454,12 @@ class TechnologyExtractor:
             
             # Сохраняем в parquet
             df.to_parquet(output_path, index=False)
-            print(f"📊 Данные сохранены в {output_path}")
+            print(f"Данные сохранены в {output_path}")
             
             # Статистика по обработанным записям
             if 'extracted_at' in df.columns:
                 processed_count = df['extracted_at'].notna().sum()
-                print(f"📈 Всего обработанных записей: {processed_count} из {len(df)}")
+                print(f"Всего обработанных записей: {processed_count} из {len(df)}")
                 
         except Exception as e:
-            print(f"❌ Ошибка сохранения: {e}")
+            print(f"Ошибка сохранения: {e}")

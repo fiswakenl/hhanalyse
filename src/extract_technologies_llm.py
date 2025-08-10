@@ -36,8 +36,8 @@ def main():
                        help="Модель для извлечения (по умолчанию: openai/gpt-oss-20b:free)")
     parser.add_argument("--input", type=str, default="data/vacancies.parquet",
                        help="Входной parquet файл (по умолчанию: data/vacancies.parquet)")
-    parser.add_argument("--output", type=str, default="data/vacancies_with_tech.parquet",
-                       help="Выходной parquet файл (по умолчанию: data/vacancies_with_tech.parquet)")
+    parser.add_argument("--output", type=str, default="data/vacancies.parquet",
+                       help="Выходной parquet файл (по умолчанию: data/vacancies.parquet)")
     parser.add_argument("--batch-size", type=int, default=5,
                        help="Размер батча для API запросов (по умолчанию: 5)")
     
@@ -45,32 +45,32 @@ def main():
     
     # Проверяем корректность аргументов
     if args.start < 0:
-        print("❌ Ошибка: --start должен быть >= 0")
+        print("Ошибка: --start должен быть >= 0")
         return
     
     if args.end <= args.start:
-        print("❌ Ошибка: --end должен быть больше --start")
+        print("Ошибка: --end должен быть больше --start")
         return
     
     if args.batch_size < 1 or args.batch_size > 10:
-        print("❌ Ошибка: --batch-size должен быть от 1 до 10")
+        print("Ошибка: --batch-size должен быть от 1 до 10")
         return
     
     # Получаем API ключ из переменных окружения
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        print("❌ Ошибка: не найден OPENROUTER_API_KEY в переменных окружения")
+        print("Ошибка: не найден OPENROUTER_API_KEY в переменных окружения")
         print("Создайте файл .env с содержимым:")
         print("OPENROUTER_API_KEY=your_api_key_here")
         return
     
     # Инициализируем экстрактор
-    print(f"🚀 Запуск извлечения технологий...")
-    print(f"📄 Модель: {args.model}")
-    print(f"📊 Диапазон: {args.start}-{args.end} ({args.end - args.start} записей)")
-    print(f"📦 Размер батча: {args.batch_size}")
-    print(f"📥 Входной файл: {args.input}")
-    print(f"📤 Выходной файл: {args.output}")
+    print(f"Запуск извлечения технологий...")
+    print(f"Модель: {args.model}")
+    print(f"Диапазон: {args.start}-{args.end} ({args.end - args.start} записей)")
+    print(f"Размер батча: {args.batch_size}")
+    print(f"Входной файл: {args.input}")
+    print(f"Выходной файл: {args.output}")
     print()
     
     try:
@@ -83,12 +83,12 @@ def main():
         # Обрабатываем вакансии
         extractor.process_range(args.start, args.end, args.input, args.output)
         
-        print("\n🎉 Обработка завершена успешно!")
+        print("\\nОбработка завершена успешно!")
         
     except KeyboardInterrupt:
-        print("\n⏹️  Обработка прервана пользователем")
+        print("\\nОбработка прервана пользователем")
     except Exception as e:
-        print(f"\n❌ Ошибка: {e}")
+        print(f"\\nОшибка: {e}")
         print("Проверьте правильность параметров и доступность API")
 
 
