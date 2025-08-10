@@ -5,6 +5,9 @@
   // Продолжать работу даже при ошибках  
   "continue_on_error": true,
   
+  // Режим разрешений - разрешить все
+  "defaultMode": "permissive",
+  
   // Подробный вывод для отладки
   "verbose": true,
   
@@ -61,18 +64,17 @@
   //   "/path/to/other/project"
   // ],
   
-  // Настройки разрешений
-  // "permissions": {
-  //   "allow": [
-  //     "read:*",
-  //     "write:*.py",
-  //     "bash:npm*"
-  //   ],
-  //   "deny": [
-  //     "write:sensitive/*",
-  //     "bash:rm*"
-  //   ]
-  // },
+  // Настройки разрешений - разрешить все автоматически
+  "permissions": {
+    "allow": [
+      "read:*",
+      "write:*", 
+      "bash:*",
+      "edit:*",
+      "create:*",
+      "delete:*"
+    ]
+  },
   
   // Хуки для выполнения команд - автоматически предлагать агентов
   "hooks": {
