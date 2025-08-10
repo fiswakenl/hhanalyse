@@ -1,0 +1,99 @@
+{
+  // Режим автопилота - автоматически подтверждать все действия
+  "auto_accept": true,
+  
+  // Продолжать работу даже при ошибках  
+  "continue_on_error": true,
+  
+  // Подробный вывод для отладки
+  "verbose": true,
+  
+  // Сохранять историю команд в проекте
+  "save_history": true,
+  
+  // Исключить из обработки
+  "exclude_patterns": [
+    ".git",           // Git репозиторий
+    "__pycache__",    // Кэш Python
+    "*.pyc",          // Скомпилированные Python файлы
+    "data/*.parquet"  // Большие файлы данных
+  ],
+  
+  // Обрабатывать только эти файлы
+  "include_patterns": [
+    "*.py",    // Python скрипты
+    "*.json",  // JSON конфиги
+    "*.md",    // Markdown документы
+    "*.txt"    // Текстовые файлы
+  ],
+
+  // ========== ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ ==========
+  
+  // Автоматические обновления
+  // "autoUpdates": true,
+  
+  // Метод уведомлений (iterm2, iterm2_with_bell, terminal_bell, notifications_disabled)
+  "preferredNotifChannel": "terminal_bell",
+  
+  // Тема интерфейса (dark, light, light-daltonized, dark-daltonized)
+  // "theme": "dark",
+  
+  // Период очистки истории чатов (в днях)
+  // "cleanupPeriodDays": 30,
+  
+  // Переменные окружения
+  // "env": {
+  //   "NODE_ENV": "development",
+  //   "DEBUG": "true"
+  // },
+  
+  // Включать "co-authored-by Claude" в git коммиты
+  // "includeCoAuthoredBy": true,
+  
+  // Переопределить модель AI
+  // "model": "claude-3-5-sonnet-20241022",
+  
+  // Режим разрешений по умолчанию
+  // "defaultMode": "strict",
+  
+  // Дополнительные рабочие директории
+  // "additionalDirectories": [
+  //   "/path/to/other/project"
+  // ],
+  
+  // Настройки разрешений
+  // "permissions": {
+  //   "allow": [
+  //     "read:*",
+  //     "write:*.py",
+  //     "bash:npm*"
+  //   ],
+  //   "deny": [
+  //     "write:sensitive/*",
+  //     "bash:rm*"
+  //   ]
+  // },
+  
+  // Хуки для выполнения команд
+  // "hooks": {
+  //   "beforeEdit": "echo 'Editing file...'",
+  //   "afterBash": "echo 'Command completed'"
+  // },
+  
+  // Кастомная строка статуса
+  // "statusLine": {
+  //   "enabled": true,
+  //   "format": "Project: {project} | Branch: {branch}"
+  // },
+  
+  // Принудительный метод входа (claude_ai или console)
+  // "forceLoginMethod": "claude_ai",
+  
+  // Скрипт для генерации API ключа
+  // "apiKeyHelper": "/path/to/auth/script.sh",
+  
+  // MCP серверы (для корпоративных настроек)
+  // "enableAllProjectMcpServers": false,
+  // "enabledMcpjsonServers": ["server1", "server2"],
+  // "disabledMcpjsonServers": ["server3"]
+}
