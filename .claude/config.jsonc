@@ -15,8 +15,8 @@
   "exclude_patterns": [
     ".git",           // Git репозиторий
     "__pycache__",    // Кэш Python
-    "*.pyc",          // Скомпилированные Python файлы
-    "data/*.parquet"  // Большие файлы данных
+    "*.pyc"          // Скомпилированные Python файлы
+    // "data/*.parquet"  // Большие файлы данных
   ],
   
   // Обрабатывать только эти файлы
@@ -42,10 +42,10 @@
   // "cleanupPeriodDays": 30,
   
   // Переменные окружения
-  // "env": {
-  //   "NODE_ENV": "development",
-  //   "DEBUG": "true"
-  // },
+  "env": {
+    "CLAUDE_AUTO_CONTEXT_MANAGER": "true",
+    "CLAUDE_CONTEXT_LIMIT": "10000"
+  },
   
   // Включать "co-authored-by Claude" в git коммиты
   // "includeCoAuthoredBy": true,
@@ -74,11 +74,12 @@
   //   ]
   // },
   
-  // Хуки для выполнения команд
-  // "hooks": {
-  //   "beforeEdit": "echo 'Editing file...'",
-  //   "afterBash": "echo 'Command completed'"
-  // },
+  // Хуки для выполнения команд - автоматически предлагать агентов
+  "hooks": {
+    "user-prompt-submit": "echo 'Анализируем задачу для выбора подходящего агента...'",
+    "beforeEdit": "echo 'Редактируем файл...'",
+    "afterBash": "echo 'Команда выполнена'"
+  }
   
   // Кастомная строка статуса
   // "statusLine": {
