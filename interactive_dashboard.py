@@ -117,7 +117,8 @@ def generate_filters():
             # Для обычных полей
             unique_values = df[field].dropna().unique()
         
-        options = [{"label": "Все", "value": "all"}]
+        # Создаем опции без "Все" для multiselect
+        options = []
         for val in unique_values:
             if pd.notna(val) and str(val).strip() != '' and str(val) != 'nan':
                 options.append({"label": str(val), "value": str(val)})
@@ -127,8 +128,9 @@ def generate_filters():
             dcc.Dropdown(
                 id=filter_config['id'],
                 options=options,
-                value="all",
-                clearable=False
+                value=[],  # Пустой список по умолчанию для multiselect
+                multi=True,  # Включаем множественный выбор
+                placeholder=f"Выберите {filter_config['label'].lower()}..."
             ),
             html.Br()
         ])
@@ -652,14 +654,15 @@ def filter_data(company_type, domain, experience, salary_range, skills_filter=No
     try:
         filtered_df = df.copy()
         
-        if company_type and company_type != "all":
-            filtered_df = filtered_df[filtered_df['company_type'] == company_type]
+        # Фильтрация по обычным полям (теперь тоже multiselect)
+        if company_type and len(company_type) > 0:
+            filtered_df = filtered_df[filtered_df['company_type'].isin(company_type)]
         
-        if domain and domain != "all":
-            filtered_df = filtered_df[filtered_df['business_domain'] == domain]
+        if domain and len(domain) > 0:
+            filtered_df = filtered_df[filtered_df['business_domain'].isin(domain)]
             
-        if experience and experience != "all":
-            filtered_df = filtered_df[filtered_df['experience_name'] == experience]
+        if experience and len(experience) > 0:
+            filtered_df = filtered_df[filtered_df['experience_name'].isin(experience)]
             
         if salary_range and len(salary_range) == 2 and salary_range[0] is not None and salary_range[1] is not None:
             # Применяем фильтр зарплат только если диапазон отличается от полного диапазона
@@ -673,24 +676,24 @@ def filter_data(company_type, domain, experience, salary_range, skills_filter=No
                 )
                 filtered_df = filtered_df[salary_filter]
         
-        # Фильтрация по массивным полям
-        if skills_filter and skills_filter != "all":
-            filtered_df = filter_by_array_field(filtered_df, 'key_skills', skills_filter)
+        # Фильтрация по массивным полям (multiselect)
+        if skills_filter and len(skills_filter) > 0:
+            filtered_df = filter_by_multiple_array_values(filtered_df, 'key_skills', skills_filter)
         
-        if fe_framework_filter and fe_framework_filter != "all":
-            filtered_df = filter_by_array_field(filtered_df, 'fe_framework', fe_framework_filter)
+        if fe_framework_filter and len(fe_framework_filter) > 0:
+            filtered_df = filter_by_multiple_array_values(filtered_df, 'fe_framework', fe_framework_filter)
             
-        if state_mgmt_filter and state_mgmt_filter != "all":
-            filtered_df = filter_by_array_field(filtered_df, 'state_mgmt', state_mgmt_filter)
+        if state_mgmt_filter and len(state_mgmt_filter) > 0:
+            filtered_df = filter_by_multiple_array_values(filtered_df, 'state_mgmt', state_mgmt_filter)
             
-        if styling_filter and styling_filter != "all":
-            filtered_df = filter_by_array_field(filtered_df, 'styling', styling_filter)
+        if styling_filter and len(styling_filter) > 0:
+            filtered_df = filter_by_multiple_array_values(filtered_df, 'styling', styling_filter)
             
-        if testing_filter and testing_filter != "all":
-            filtered_df = filter_by_array_field(filtered_df, 'testing', testing_filter)
+        if testing_filter and len(testing_filter) > 0:
+            filtered_df = filter_by_multiple_array_values(filtered_df, 'testing', testing_filter)
             
-        if api_proto_filter and api_proto_filter != "all":
-            filtered_df = filter_by_array_field(filtered_df, 'api_proto', api_proto_filter)
+        if api_proto_filter and len(api_proto_filter) > 0:
+            filtered_df = filter_by_multiple_array_values(filtered_df, 'api_proto', api_proto_filter)
         
         return filtered_df
     except Exception as e:
@@ -708,6 +711,22 @@ def filter_by_array_field(df_to_filter, field_name, target_value):
     for array_data in df_to_filter[field_name]:
         parsed_items = parse_array_field(array_data)
         mask.append(target_value in parsed_items)
+    
+    return df_to_filter[mask]
+
+# Функция для фильтрации по множественным значениям в массивном поле
+def filter_by_multiple_array_values(df_to_filter, field_name, target_values):
+    """Фильтрует DataFrame по множественным значениям в массивном поле"""
+    if not target_values or len(target_values) == 0 or field_name not in df_to_filter.columns:
+        return df_to_filter
+    
+    # Создаем маску для строк, содержащих хотя бы одно из нужных значений
+    mask = []
+    for array_data in df_to_filter[field_name]:
+        parsed_items = parse_array_field(array_data)
+        # Проверяем, есть ли пересечение между parsed_items и target_values
+        has_match = any(value in parsed_items for value in target_values)
+        mask.append(has_match)
     
     return df_to_filter[mask]
 
@@ -737,16 +756,16 @@ def update_content(active_tab, company_type, domain, experience, salary_range, s
         
         # Если нажата кнопка сброса, сбрасываем фильтры
         if ctx.triggered and ctx.triggered[0]['prop_id'] == 'reset-filters.n_clicks':
-            company_type = "all"
-            domain = "all"
-            experience = "all"
+            company_type = []
+            domain = []
+            experience = []
             salary_range = [SALARY_MIN, SALARY_MAX]
-            skills_filter = "all"
-            fe_framework_filter = "all"
-            state_mgmt_filter = "all"
-            styling_filter = "all"
-            testing_filter = "all"
-            api_proto_filter = "all"
+            skills_filter = []
+            fe_framework_filter = []
+            state_mgmt_filter = []
+            styling_filter = []
+            testing_filter = []
+            api_proto_filter = []
         
         # Фильтруем данные
         filtered_df = filter_data(company_type, domain, experience, salary_range, skills_filter, 
@@ -798,7 +817,7 @@ def update_content(active_tab, company_type, domain, experience, salary_range, s
 )
 def reset_filters(n_clicks):
     if n_clicks:
-        return "all", "all", "all", [SALARY_MIN, SALARY_MAX], "all", "all", "all", "all", "all", "all"
+        return [], [], [], [SALARY_MIN, SALARY_MAX], [], [], [], [], [], []
     return (dash.no_update, dash.no_update, dash.no_update, dash.no_update, 
             dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update)
 
