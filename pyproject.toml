@@ -32,4 +32,6 @@ dependencies = [
     "dash>=2.16.0",
     "dash-bootstrap-components>=1.5.0",
     "streamlit>=1.28.0",
+    "sweetviz>=2.3.1",
+    "dtale>=3.16.1",
 ]
