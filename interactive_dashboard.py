@@ -11,10 +11,190 @@ import numpy as np
 # Загрузка данных
 df = pd.read_parquet('data/vacancies.parquet')
 
-# Универсальная функция для парсинга навыков из разных форматов
-def parse_skills(skills_data):
+# Конфигурация всех типов графиков и фильтров
+CHART_CONFIG = {
+    'company': {
+        'title': 'Типы компаний',
+        'tab_id': 'company-tab',
+        'chart_func': lambda df: create_single_field_chart(df, 'company_type', 'Распределение вакансий по типам компаний'),
+        'filter_field': 'company_type'
+    },
+    'domain': {
+        'title': 'Бизнес-домены', 
+        'tab_id': 'domain-tab',
+        'chart_func': lambda df: create_single_field_chart(df, 'business_domain', 'Топ бизнес-домены', top_n=15),
+        'filter_field': 'business_domain'
+    },
+    'skills': {
+        'title': 'Навыки и технологии',
+        'tab_id': 'skills-tab',
+        'chart_func': lambda df: create_array_field_chart(df, 'key_skills', 'Топ навыки и технологии', normalize_skill),
+        'filter_field': None  # Особый случай - используем отдельную фильтрацию
+    },
+    'arrays': {
+        'title': 'Массивы данных',
+        'tab_id': 'arrays-tab',
+        'chart_func': 'dynamic',  # Динамическая функция
+        'filter_field': None
+    },
+    'salary': {
+        'title': 'Зарплаты',
+        'tab_id': 'salary-tab', 
+        'chart_func': lambda df: create_salary_experience_chart(df),
+        'filter_field': None
+    }
+}
+
+# Список массивных полей доступных для анализа
+ARRAY_FIELDS = {
+    'key_skills': 'Навыки и технологии',
+    'fe_framework': 'Фронтенд-фреймворки',
+    'state_mgmt': 'Управление состоянием',
+    'styling': 'Стилизация',
+    'testing': 'Тестирование',
+    'api_proto': 'API протоколы'
+}
+
+# Фильтры для sidebar
+FILTERS_CONFIG = [
+    {'id': 'company-filter', 'label': 'Тип компании', 'field': 'company_type'},
+    {'id': 'domain-filter', 'label': 'Бизнес-домен', 'field': 'business_domain'},
+    {'id': 'experience-filter', 'label': 'Опыт работы', 'field': 'experience_name'}
+]
+
+# Функция для получения уникальных значений из массивного поля
+def get_unique_array_values(field_name, limit=50):
+    """Получает уникальные значения из массивного поля"""
+    if field_name not in df.columns:
+        return []
+    
+    all_values = []
+    for array_data in df[field_name].dropna():
+        parsed_items = parse_array_field(array_data)
+        all_values.extend(parsed_items)
+    
+    if not all_values:
+        return []
+    
+    # Возвращаем топ-значения по частоте
+    values_counts = pd.Series(all_values).value_counts()
+    return values_counts.head(limit).index.tolist()
+
+# Генерация фильтров
+def generate_filters():
+    """Генерирует все фильтры для sidebar"""
+    filters = []
+    
+    for filter_config in FILTERS_CONFIG:
+        field = filter_config['field']
+        unique_values = df[field].dropna().unique()
+        
+        filters.extend([
+            html.H6(filter_config['label']),
+            dcc.Dropdown(
+                id=filter_config['id'],
+                options=[{"label": "Все", "value": "all"}] + 
+                        [{"label": str(val), "value": str(val)} for val in unique_values 
+                         if pd.notna(val) and str(val).strip() != '' and str(val) != 'nan'],
+                value="all",
+                clearable=False
+            ),
+            html.Br()
+        ])
+    
+    return filters
+
+# Генерация табов
+def generate_tabs():
+    """Генерирует все табы из конфигурации"""
+    tabs = []
+    for config in CHART_CONFIG.values():
+        tabs.append(dbc.Tab(label=config['title'], tab_id=config['tab_id']))
+    return tabs
+
+# Универсальная генерация контента табов
+def generate_tab_content(active_tab, filtered_df, array_field=None):
+    """Генерирует контент для активного таба на основе конфигурации"""
+    
+    # Находим конфигурацию для активного таба
+    config = None
+    for key, cfg in CHART_CONFIG.items():
+        if cfg['tab_id'] == active_tab:
+            config = cfg
+            break
+    
+    if not config:
+        return html.Div("Таб не найден")
+    
+    # Специальная обработка для массивных данных
+    if active_tab == "arrays-tab":
+        if array_field and array_field in ARRAY_FIELDS:
+            field_title = ARRAY_FIELDS[array_field]
+            chart = create_array_field_chart(filtered_df, array_field, field_title)
+            chart_id = "arrays-chart"
+        else:
+            return dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        html.H4("Анализ массивных полей"),
+                        html.P("Выберите поле для анализа в фильтрах слева."),
+                        html.Ul([
+                            html.Li(f"{label} ({field})") for field, label in ARRAY_FIELDS.items()
+                        ])
+                    ])
+                ], width=12)
+            ])
+    else:
+        # Обычная генерация графика по конфигурации
+        chart = config['chart_func'](filtered_df)
+        chart_id = f"{active_tab.replace('-tab', '')}-chart"
+    
+    return dbc.Row([
+        dbc.Col([
+            dcc.Graph(figure=chart, id=chart_id)
+        ], width=12)
+    ])
+
+# Универсальная функция для одиночных полей (company_type, business_domain)
+def create_single_field_chart(filtered_df, field_name, title, top_n=None):
+    """Универсальная функция для создания графиков по одиночным полям"""
+    try:
+        if field_name not in filtered_df.columns:
+            return create_empty_chart(title, "Поле не найдено")
+        
+        field_counts = filtered_df[field_name].dropna().value_counts()
+        if top_n:
+            field_counts = field_counts.head(top_n)
+        
+        if len(field_counts) == 0:
+            return create_empty_chart(title, "Нет данных")
+        
+        fig = px.bar(
+            x=field_counts.values,
+            y=field_counts.index,
+            orientation='h',
+            title=title,
+            labels={'x': 'Количество вакансий', 'y': field_name.replace('_', ' ').title()}
+        )
+        
+        fig.update_layout(height=500)
+        return fig
+        
+    except Exception as e:
+        print(f"Error in create_single_field_chart for {field_name}: {e}")
+        return create_empty_chart(title, "Ошибка обработки данных")
+
+# Вспомогательная функция для пустых графиков
+def create_empty_chart(title, message):
+    """Создает пустой график с сообщением"""
+    fig = px.bar(x=[0], y=[message], orientation='h', title=title)
+    fig.update_layout(height=500)
+    return fig
+
+# Универсальная функция для парсинга массивных полей из разных форматов
+def parse_array_field(array_data):
     """
-    Парсит навыки из различных форматов данных:
+    Парсит массивы из различных форматов данных:
     - numpy arrays
     - Python lists
     - JSON strings  
@@ -22,18 +202,18 @@ def parse_skills(skills_data):
     - literal eval strings
     
     Args:
-        skills_data: данные любого формата
+        array_data: данные любого формата
         
     Returns:
-        list: список строк с навыками
+        list: список строк с элементами
     """
     # Проверяем на None и NaN с учетом numpy arrays
-    if skills_data is None:
+    if array_data is None:
         return []
     
     # Для numpy arrays проверяем через try/except
     try:
-        if pd.isna(skills_data):
+        if pd.isna(array_data):
             return []
     except (TypeError, ValueError):
         # Если pd.isna не работает (например, для numpy array), продолжаем
@@ -41,69 +221,69 @@ def parse_skills(skills_data):
     
     try:
         # Если это numpy array
-        if isinstance(skills_data, np.ndarray):
-            if skills_data.size == 0:
+        if isinstance(array_data, np.ndarray):
+            if array_data.size == 0:
                 return []
             # Фильтруем пустые значения и пустые строки
-            skills = []
-            for skill in skills_data:
-                skill_str = str(skill).strip()
-                if skill_str and skill_str != 'nan' and skill_str != 'None':
-                    skills.append(skill_str)
-            return skills
+            items = []
+            for item in array_data:
+                item_str = str(item).strip()
+                if item_str and item_str != 'nan' and item_str != 'None':
+                    items.append(item_str)
+            return items
         
         # Если это уже список
-        if isinstance(skills_data, (list, tuple)):
-            skills = []
-            for skill in skills_data:
-                skill_str = str(skill).strip()
-                if skill_str and skill_str != 'nan' and skill_str != 'None':
-                    skills.append(skill_str)
-            return skills
+        if isinstance(array_data, (list, tuple)):
+            items = []
+            for item in array_data:
+                item_str = str(item).strip()
+                if item_str and item_str != 'nan' and item_str != 'None':
+                    items.append(item_str)
+            return items
         
         # Если это строка
-        if isinstance(skills_data, str):
-            skills_data = skills_data.strip()
+        if isinstance(array_data, str):
+            array_data = array_data.strip()
             
-            if not skills_data:
+            if not array_data:
                 return []
             
             # Попытка парсинга как JSON массив
-            if skills_data.startswith('[') and skills_data.endswith(']'):
+            if array_data.startswith('[') and array_data.endswith(']'):
                 try:
-                    parsed = json.loads(skills_data)
+                    parsed = json.loads(array_data)
                     if isinstance(parsed, list):
-                        skills = []
-                        for skill in parsed:
-                            skill_str = str(skill).strip()
-                            if skill_str and skill_str != 'nan' and skill_str != 'None':
-                                skills.append(skill_str)
-                        return skills
+                        items = []
+                        for item in parsed:
+                            item_str = str(item).strip()
+                            if item_str and item_str != 'nan' and item_str != 'None':
+                                items.append(item_str)
+                        return items
                 except (json.JSONDecodeError, ValueError):
                     pass
                 
                 # Попытка парсинга как Python literal
                 try:
-                    parsed = ast.literal_eval(skills_data)
+                    parsed = ast.literal_eval(array_data)
                     if isinstance(parsed, list):
-                        skills = []
-                        for skill in parsed:
-                            skill_str = str(skill).strip()
-                            if skill_str and skill_str != 'nan' and skill_str != 'None':
-                                skills.append(skill_str)
-                        return skills
+                        items = []
+                        for item in parsed:
+                            item_str = str(item).strip()
+                            if item_str and item_str != 'nan' and item_str != 'None':
+                                items.append(item_str)
+                        return items
                 except (SyntaxError, ValueError):
                     pass
             
             # Разделение по запятым как fallback
-            skills = [s.strip() for s in skills_data.split(',')]
-            return [skill for skill in skills if skill]
+            items = [s.strip() for s in array_data.split(',')]
+            return [item for item in items if item]
         
         # Для других типов - попытка конвертации в строку
-        return [str(skills_data).strip()] if str(skills_data).strip() else []
+        return [str(array_data).strip()] if str(array_data).strip() else []
         
     except Exception as e:
-        print(f"Warning: Error parsing skills {skills_data}: {e}")
+        print(f"Warning: Error parsing array data {array_data}: {e}")
         return []
 
 # Функция нормализации навыков
@@ -148,6 +328,7 @@ def normalize_skill(skill):
     
     skill_lower = skill.lower()
     return skill_normalization.get(skill_lower, skill)
+
 
 # Функция для нормализации зарплат в рубли
 def normalize_salary(row):
@@ -241,38 +422,7 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardHeader("Фильтры"),
                 dbc.CardBody([
-                    html.H6("Тип компании"),
-                    dcc.Dropdown(
-                        id="company-filter",
-                        options=[{"label": "Все", "value": "all"}] + 
-                                [{"label": str(ct), "value": str(ct)} for ct in df['company_type'].dropna().unique() 
-                                 if pd.notna(ct) and str(ct).strip() != '' and str(ct) != 'nan'],
-                        value="all",
-                        clearable=False
-                    ),
-                    html.Br(),
-                    
-                    html.H6("Бизнес-домен"),
-                    dcc.Dropdown(
-                        id="domain-filter", 
-                        options=[{"label": "Все", "value": "all"}] + 
-                                [{"label": str(bd), "value": str(bd)} for bd in df['business_domain'].dropna().unique() 
-                                 if pd.notna(bd) and str(bd).strip() != '' and str(bd) != 'nan'],
-                        value="all",
-                        clearable=False
-                    ),
-                    html.Br(),
-                    
-                    html.H6("Опыт работы"),
-                    dcc.Dropdown(
-                        id="experience-filter",
-                        options=[{"label": "Все", "value": "all"}] + 
-                                [{"label": str(exp), "value": str(exp)} for exp in df['experience_name'].dropna().unique() 
-                                 if pd.notna(exp) and str(exp).strip() != '' and str(exp) != 'nan'],
-                        value="all",
-                        clearable=False
-                    ),
-                    html.Br(),
+                    *generate_filters(),
                     
                     html.H6("Диапазон зарплат (₽)"),
                     dcc.RangeSlider(
@@ -288,6 +438,25 @@ app.layout = dbc.Container([
                     ),
                     html.Br(),
                     
+                    html.H6("Фильтр по массивным полям"),
+                    html.Div([
+                        dcc.Dropdown(
+                            id="array-field-selector",
+                            options=[{"label": label, "value": field} for field, label in ARRAY_FIELDS.items()],
+                            value="key_skills",
+                            clearable=False,
+                            placeholder="Выберите поле"
+                        ),
+                        html.Br(),
+                        dcc.Dropdown(
+                            id="array-value-filter",
+                            options=[],
+                            value=None,
+                            placeholder="Выберите значение для фильтрации"
+                        )
+                    ]),
+                    html.Br(),
+                    
                     dbc.Button("Сбросить все фильтры", id="reset-filters", color="secondary", size="sm"),
                     html.Hr(),
                     
@@ -299,12 +468,7 @@ app.layout = dbc.Container([
         # Основной контент
         dbc.Col([
             # Табы
-            dbc.Tabs([
-                dbc.Tab(label="Типы компаний", tab_id="company-tab"),
-                dbc.Tab(label="Бизнес-домены", tab_id="domain-tab"), 
-                dbc.Tab(label="Навыки и технологии", tab_id="skills-tab"),
-                dbc.Tab(label="Зарплаты", tab_id="salary-tab"),
-            ], id="tabs", active_tab="company-tab"),
+            dbc.Tabs(generate_tabs(), id="tabs", active_tab="company-tab"),
             
             html.Br(),
             
@@ -315,136 +479,113 @@ app.layout = dbc.Container([
     
 ], fluid=True)
 
-# Функции для создания графиков
-def create_company_type_chart(filtered_df):
-    try:
-        company_counts = filtered_df['company_type'].dropna().value_counts()
-        
-        if len(company_counts) == 0:
-            fig = px.bar(
-                x=[0], y=["Нет данных"],
-                orientation='h',
-                title="Распределение вакансий по типам компаний"
-            )
-        else:
-            fig = px.bar(
-                x=company_counts.values,
-                y=company_counts.index,
-                orientation='h',
-                title="Распределение вакансий по типам компаний",
-                labels={'x': 'Количество вакансий', 'y': 'Тип компании'}
-            )
-        
-        fig.update_layout(height=500)
-        return fig
-    except Exception as e:
-        print(f"Error in create_company_type_chart: {e}")
-        fig = px.bar(x=[0], y=["Ошибка загрузки"], orientation='h', title="Ошибка")
-        return fig
+# Старые функции создания графиков заменены универсальными
 
-def create_business_domain_chart(filtered_df):
+def create_array_field_chart(filtered_df, field_name, title, normalizer_func=None, top_n=20):
+    """
+    Универсальная функция для создания графиков по массивным полям.
+    
+    Args:
+        filtered_df: отфильтрованный DataFrame
+        field_name: название поля для анализа (например, 'key_skills', 'fe_framework')
+        title: заголовок графика
+        normalizer_func: функция для нормализации значений (необязательно)
+        top_n: количество топ-элементов для отображения
+    """
     try:
-        domain_counts = filtered_df['business_domain'].dropna().value_counts().head(15)
-        
-        if len(domain_counts) == 0:
+        # Проверяем наличие поля в данных
+        if field_name not in filtered_df.columns:
             fig = px.bar(
-                x=[0], y=["Нет данных"],
+                x=[0], y=["Поле не найдено"],
                 orientation='h',
-                title="Топ бизнес-домены"
-            )
-        else:
-            fig = px.bar(
-                x=domain_counts.values,
-                y=domain_counts.index,
-                orientation='h',
-                title="Топ бизнес-домены",
-                labels={'x': 'Количество вакансий', 'y': 'Бизнес-домен'}
-            )
-        
-        fig.update_layout(height=500)
-        return fig
-    except Exception as e:
-        print(f"Error in create_business_domain_chart: {e}")
-        fig = px.bar(x=[0], y=["Ошибка загрузки"], orientation='h', title="Ошибка")
-        return fig
-
-def create_skills_chart(filtered_df):
-    try:
-        # Обработка key_skills с новой универсальной функцией парсинга
-        all_skills = []
-        
-        for skills_data in filtered_df['key_skills']:
-            parsed_skills = parse_skills(skills_data)
-            # Нормализация навыков
-            normalized_skills = [normalize_skill(skill) for skill in parsed_skills]
-            # Фильтрация пустых значений
-            valid_skills = [skill for skill in normalized_skills if skill is not None and len(skill) > 1]
-            all_skills.extend(valid_skills)
-        
-        if not all_skills:
-            # Если нет навыков, создаем пустой график
-            fig = px.bar(
-                x=[0], y=["Нет данных"],
-                orientation='h',
-                title="Топ навыки и технологии"
+                title=title
             )
             fig.update_layout(height=500)
             return fig
         
-        # Подсчет частоты навыков
-        skills_counts = pd.Series(all_skills).value_counts().head(20)  # Увеличил до 20 для лучшего анализа
+        # Обработка массивных данных
+        all_items = []
         
-        # Фильтрация навыков с минимальной частотой (убираем редкие навыки)
-        min_frequency = max(1, len(filtered_df) // 50)  # Минимум 2% от общего количества вакансий
-        skills_counts = skills_counts[skills_counts >= min_frequency]
+        for array_data in filtered_df[field_name]:
+            parsed_items = parse_array_field(array_data)
+            # Применяем нормализацию если есть функция
+            if normalizer_func:
+                normalized_items = [normalizer_func(item) for item in parsed_items]
+                # Фильтрация пустых значений
+                valid_items = [item for item in normalized_items if item is not None and len(str(item)) > 1]
+            else:
+                # Простая фильтрация без нормализации
+                valid_items = [item for item in parsed_items if item and len(str(item).strip()) > 1]
+            all_items.extend(valid_items)
         
-        if len(skills_counts) == 0:
+        if not all_items:
+            # Если нет данных, создаем пустой график
+            fig = px.bar(
+                x=[0], y=["Нет данных"],
+                orientation='h',
+                title=title
+            )
+            fig.update_layout(height=500)
+            return fig
+        
+        # Подсчет частоты элементов
+        items_counts = pd.Series(all_items).value_counts().head(top_n)
+        
+        # Фильтрация элементов с минимальной частотой (убираем редкие)
+        min_frequency = max(1, len(filtered_df) // 50)  # Минимум 2% от общего количества записей
+        items_counts = items_counts[items_counts >= min_frequency]
+        
+        if len(items_counts) == 0:
             fig = px.bar(
                 x=[0], y=["Слишком мало данных"],
                 orientation='h',
-                title="Топ навыки и технологии"
+                title=title
             )
             fig.update_layout(height=500)
             return fig
         
         # Создание графика
         fig = px.bar(
-            x=skills_counts.values,
-            y=skills_counts.index,
+            x=items_counts.values,
+            y=items_counts.index,
             orientation='h',
-            title=f"Топ навыки и технологии (мин. {min_frequency} упоминаний)",
-            labels={'x': 'Частота упоминания', 'y': 'Навыки'},
-            color=skills_counts.values,
+            title=f"{title} (мин. {min_frequency} упоминаний)",
+            labels={'x': 'Частота упоминания', 'y': 'Элементы'},
+            color=items_counts.values,
             color_continuous_scale='viridis'
         )
         
-        # Улучшение внешнего вида
+        # Улучшение внешнего вида - ФИКСИРОВАННАЯ высота чтобы избежать увеличения
         fig.update_layout(
-            height=max(500, len(skills_counts) * 25),  # Динамическая высота
+            height=500,  # Фиксированная высота
             showlegend=False,
             xaxis_title="Количество вакансий",
-            yaxis_title="Навыки",
+            yaxis_title=field_name.replace('_', ' ').title(),
             font=dict(size=12)
         )
         
         # Обновление hover информации
         fig.update_traces(
             hovertemplate="<b>%{y}</b><br>Упоминаний: %{x}<br>Процент: %{customdata:.1f}%<extra></extra>",
-            customdata=(skills_counts.values / len(filtered_df) * 100)
+            customdata=(items_counts.values / len(filtered_df) * 100)
         )
         
         return fig
         
     except Exception as e:
-        print(f"Error in create_skills_chart: {e}")
+        print(f"Error in create_array_field_chart for {field_name}: {e}")
         # В случае ошибки возвращаем базовый график с ошибкой
         fig = px.bar(
             x=[0], y=["Ошибка обработки данных"],
             orientation='h', 
-            title="Топ навыки и технологии"
+            title=title
         )
         fig.update_layout(height=500)
         return fig
+
+def create_skills_chart(filtered_df):
+    """Создание графика навыков (обертка для обратной совместимости)"""
+    return create_array_field_chart(filtered_df, 'key_skills', 'Топ навыки и технологии', normalize_skill)
 
 def create_salary_experience_chart(filtered_df):
     try:
@@ -510,8 +651,22 @@ def create_salary_experience_chart(filtered_df):
         fig.update_layout(title="Ошибка загрузки данных", height=500)
         return fig
 
+# Функция для фильтрации по массивному полю
+def filter_by_array_field(df_to_filter, field_name, target_value):
+    """Фильтрует DataFrame по значению в массивном поле"""
+    if not target_value or field_name not in df_to_filter.columns:
+        return df_to_filter
+    
+    # Создаем маску для строк, содержащих нужное значение
+    mask = []
+    for array_data in df_to_filter[field_name]:
+        parsed_items = parse_array_field(array_data)
+        mask.append(target_value in parsed_items)
+    
+    return df_to_filter[mask]
+
 # Функция для фильтрации данных
-def filter_data(company_type, domain, experience, salary_range):
+def filter_data(company_type, domain, experience, salary_range, array_field=None, array_value=None):
     try:
         filtered_df = df.copy()
         
@@ -536,10 +691,27 @@ def filter_data(company_type, domain, experience, salary_range):
                 )
                 filtered_df = filtered_df[salary_filter]
         
+        # Фильтрация по массивному полю
+        if array_field and array_value:
+            filtered_df = filter_by_array_field(filtered_df, array_field, array_value)
+        
         return filtered_df
     except Exception as e:
         print(f"Error in filter_data: {e}")
         return df.copy()  # Возвращаем исходные данные в случае ошибки
+
+# Callback для обновления значений в dropdown массивных полей
+@app.callback(
+    Output("array-value-filter", "options"),
+    Input("array-field-selector", "value"),
+    prevent_initial_call=False
+)
+def update_array_values(selected_field):
+    if not selected_field:
+        return []
+    
+    values = get_unique_array_values(selected_field)
+    return [{"label": value, "value": value} for value in values]
 
 # Callback для обновления контента и статистики
 @app.callback(
@@ -550,10 +722,12 @@ def filter_data(company_type, domain, experience, salary_range):
      Input("domain-filter", "value"),
      Input("experience-filter", "value"),
      Input("salary-filter", "value"),
+     Input("array-field-selector", "value"),
+     Input("array-value-filter", "value"),
      Input("reset-filters", "n_clicks")],
     prevent_initial_call=False
 )
-def update_content(active_tab, company_type, domain, experience, salary_range, reset_clicks):
+def update_content(active_tab, company_type, domain, experience, salary_range, array_field, array_value, reset_clicks):
     try:
         ctx = callback_context
         
@@ -563,9 +737,11 @@ def update_content(active_tab, company_type, domain, experience, salary_range, r
             domain = "all"
             experience = "all"
             salary_range = [SALARY_MIN, SALARY_MAX]
+            array_field = "key_skills"
+            array_value = None
         
         # Фильтруем данные
-        filtered_df = filter_data(company_type, domain, experience, salary_range)
+        filtered_df = filter_data(company_type, domain, experience, salary_range, array_field, array_value)
         
         # Статистика фильтрации с защитой от ошибок
         try:
@@ -580,36 +756,8 @@ def update_content(active_tab, company_type, domain, experience, salary_range, r
             html.P(avg_salary_text)
         ]
         
-        # Контент таба в зависимости от активного таба
-        if active_tab == "company-tab":
-            content = dbc.Row([
-                dbc.Col([
-                    dcc.Graph(figure=create_company_type_chart(filtered_df), id="company-chart")
-                ], width=12)
-            ])
-        
-        elif active_tab == "domain-tab":
-            content = dbc.Row([
-                dbc.Col([
-                    dcc.Graph(figure=create_business_domain_chart(filtered_df), id="domain-chart")
-                ], width=12)
-            ])
-        
-        elif active_tab == "skills-tab":
-            content = dbc.Row([
-                dbc.Col([
-                    dcc.Graph(figure=create_skills_chart(filtered_df), id="skills-chart")
-                ], width=12)
-            ])
-        
-        elif active_tab == "salary-tab":
-            content = dbc.Row([
-                dbc.Col([
-                    dcc.Graph(figure=create_salary_experience_chart(filtered_df), id="salary-chart")
-                ], width=12)
-            ])
-        else:
-            content = html.Div("Выберите таб")
+        # Универсальная генерация контента по конфигурации
+        content = generate_tab_content(active_tab, filtered_df, array_field)
         
         return content, stats
     
@@ -628,14 +776,16 @@ def update_content(active_tab, company_type, domain, experience, salary_range, r
     [Output("company-filter", "value"),
      Output("domain-filter", "value"),
      Output("experience-filter", "value"),
-     Output("salary-filter", "value")],
+     Output("salary-filter", "value"),
+     Output("array-field-selector", "value"),
+     Output("array-value-filter", "value")],
     Input("reset-filters", "n_clicks"),
     prevent_initial_call=True
 )
 def reset_filters(n_clicks):
     if n_clicks:
-        return "all", "all", "all", [SALARY_MIN, SALARY_MAX]
-    return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return "all", "all", "all", [SALARY_MIN, SALARY_MAX], "key_skills", None
+    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
 if __name__ == "__main__":
     app.run(debug=True, port=8050)
