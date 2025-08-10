@@ -525,13 +525,16 @@ def filter_data(company_type, domain, experience, salary_range):
             filtered_df = filtered_df[filtered_df['experience_name'] == experience]
             
         if salary_range and len(salary_range) == 2 and salary_range[0] is not None and salary_range[1] is not None:
-            # Фильтруем только записи с валидными зарплатами
-            salary_filter = (
-                (filtered_df['salary_from_rub'].notna()) &
-                (filtered_df['salary_from_rub'] >= salary_range[0]) & 
-                (filtered_df['salary_from_rub'] <= salary_range[1])
-            )
-            filtered_df = filtered_df[salary_filter]
+            # Применяем фильтр зарплат только если диапазон отличается от полного диапазона
+            # Это позволяет показывать все вакансии (включая без зарплаты) при дефолтных настройках
+            if salary_range != [SALARY_MIN, SALARY_MAX]:
+                # Фильтруем только записи с валидными зарплатами в указанном диапазоне
+                salary_filter = (
+                    (filtered_df['salary_from_rub'].notna()) &
+                    (filtered_df['salary_from_rub'] >= salary_range[0]) & 
+                    (filtered_df['salary_from_rub'] <= salary_range[1])
+                )
+                filtered_df = filtered_df[salary_filter]
         
         return filtered_df
     except Exception as e:
