@@ -30,16 +30,16 @@ class TechnologyExtractor:
         self.model = model
         self.batch_size = batch_size
         
-        # Базовые категории (будут динамически дополняться)
+        # Базовые категории (нормализованные + дополняются динамически)
         self.base_categories = {
-            "fe_framework": ["React", "Vue", "Angular", "Svelte", "Next.js"],
-            "state_mgmt": ["Redux", "MobX", "Zustand", "RTK Query", "Pinia"],
-            "styling": ["Tailwind", "SCSS", "Styled Components", "CSS Modules", "MUI"],
-            "testing": ["Jest", "Cypress", "Playwright", "RTL", "Vitest"],
-            "api_proto": ["REST", "GraphQL", "WebSocket", "tRPC"],
+            "fe_framework": ["React", "Vue", "Angular", "Svelte", "Next.js", "Nuxt", "Ionic", "jQuery", "Aurelia"],
+            "state_mgmt": ["Redux", "MobX", "Zustand", "RTK Query", "Pinia", "Context API", "Recoil", "Jotai"],
+            "styling": ["Tailwind CSS", "SCSS", "Styled Components", "CSS Modules", "MUI", "CSS", "Bootstrap", "LESS", "Ant Design", "BEM", "CSS-in-JS", "HTML/CSS"],
+            "testing": ["Jest", "Cypress", "Playwright", "RTL", "Vitest", "Mocha", "Karma", "Jasmine"],
+            "api_proto": ["REST", "GraphQL", "WebSocket", "tRPC", "gRPC", "SOAP"],
             "ts_required": ["да", "нет", "не указано"],
-            "business_domain": ["финтех", "e-commerce", "образование", "медтех", "геймдев"],
-            "company_type": ["продуктовая", "аутсорс", "аутстафф", "веб-студия", "стартап"]
+            "business_domain": ["финтех", "e-commerce", "образование", "медтех", "геймдев", "веб-разработка", "стартап", "реклама", "медиа", "телеком", "недвижимость", "туризм", "авиация", "госсектор", "спорт", "hr-tech", "crm-системы", "b2b-сервисы", "искусственный интеллект", "девопс", "видео-контент", "low-code платформы"],
+            "company_type": ["продуктовая", "аутсорс", "аутстафф", "веб-студия", "стартап", "консалтинг", "некоммерческая", "корпоративная"]
         }
         
         # Колонки которые будут дополняться динамически (массивы)
@@ -135,15 +135,23 @@ class TechnologyExtractor:
 - "branded_description" - описание компании и её деятельности
 - "employer_name" - название работодателя
 
-СУЩЕСТВУЮЩИЕ КАТЕГОРИИ (используй их, если подходят, иначе создавай новые):
+СУЩЕСТВУЮЩИЕ КАТЕГОРИИ (ИСПОЛЬЗУЙ ТОЛЬКО ИХ, НЕ СОЗДАВАЙ ДУБЛИ):
 {categories_text}
 
-СТРОГИЕ ПРАВИЛА:
+СТРОГИЕ ПРАВИЛА КОНСИСТЕНТНОСТИ:
 1. Для технологий (fe_framework, state_mgmt, styling, testing, api_proto) - выбирай ВСЕ подходящие в массив
 2. Для ts_required, business_domain, company_type - ОДНУ категорию
-3. Если существующая категория НЕ подходит - создай новую конкретную
-4. Всегда заполняй ВСЕ поля
-5. КРИТИЧЕСКИ ВАЖНО: Отвечай ТОЛЬКО валидным JSON массивом, БЕЗ объяснений, БЕЗ дополнительного текста, БЕЗ markdown
+3. ИСПОЛЬЗУЙ ТОЛЬКО существующие категории из списка выше
+4. НЕ создавай синонимы: "Vue.js" → используй "Vue", "FinTech" → используй "финтех"
+5. НЕ создавай дубли на английском если есть русский вариант
+6. Всегда заполняй ВСЕ поля
+7. КРИТИЧЕСКИ ВАЖНО: Отвечай ТОЛЬКО валидным JSON массивом, БЕЗ объяснений, БЕЗ дополнительного текста, БЕЗ markdown
+
+ПРИМЕРЫ ПРАВИЛЬНОГО ИСПОЛЬЗОВАНИЯ:
+- fe_framework: ["Vue"] (НЕ "Vue.js")
+- styling: ["SCSS"] (НЕ "Sass" или "SASS") 
+- business_domain: "финтех" (НЕ "FinTech")
+- company_type: "продуктовая" (НЕ "product")
 
 ОБЯЗАТЕЛЬНЫЙ ФОРМАТ ОТВЕТА - ТОЛЬКО этот JSON массив:
 [
