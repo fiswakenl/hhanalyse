@@ -4,9 +4,150 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import dash_bootstrap_components as dbc
+import ast
+import json
+import numpy as np
 
 # Загрузка данных
 df = pd.read_parquet('data/vacancies.parquet')
+
+# Универсальная функция для парсинга навыков из разных форматов
+def parse_skills(skills_data):
+    """
+    Парсит навыки из различных форматов данных:
+    - numpy arrays
+    - Python lists
+    - JSON strings  
+    - comma-separated strings
+    - literal eval strings
+    
+    Args:
+        skills_data: данные любого формата
+        
+    Returns:
+        list: список строк с навыками
+    """
+    # Проверяем на None и NaN с учетом numpy arrays
+    if skills_data is None:
+        return []
+    
+    # Для numpy arrays проверяем через try/except
+    try:
+        if pd.isna(skills_data):
+            return []
+    except (TypeError, ValueError):
+        # Если pd.isna не работает (например, для numpy array), продолжаем
+        pass
+    
+    try:
+        # Если это numpy array
+        if isinstance(skills_data, np.ndarray):
+            if skills_data.size == 0:
+                return []
+            # Фильтруем пустые значения и пустые строки
+            skills = []
+            for skill in skills_data:
+                skill_str = str(skill).strip()
+                if skill_str and skill_str != 'nan' and skill_str != 'None':
+                    skills.append(skill_str)
+            return skills
+        
+        # Если это уже список
+        if isinstance(skills_data, (list, tuple)):
+            skills = []
+            for skill in skills_data:
+                skill_str = str(skill).strip()
+                if skill_str and skill_str != 'nan' and skill_str != 'None':
+                    skills.append(skill_str)
+            return skills
+        
+        # Если это строка
+        if isinstance(skills_data, str):
+            skills_data = skills_data.strip()
+            
+            if not skills_data:
+                return []
+            
+            # Попытка парсинга как JSON массив
+            if skills_data.startswith('[') and skills_data.endswith(']'):
+                try:
+                    parsed = json.loads(skills_data)
+                    if isinstance(parsed, list):
+                        skills = []
+                        for skill in parsed:
+                            skill_str = str(skill).strip()
+                            if skill_str and skill_str != 'nan' and skill_str != 'None':
+                                skills.append(skill_str)
+                        return skills
+                except (json.JSONDecodeError, ValueError):
+                    pass
+                
+                # Попытка парсинга как Python literal
+                try:
+                    parsed = ast.literal_eval(skills_data)
+                    if isinstance(parsed, list):
+                        skills = []
+                        for skill in parsed:
+                            skill_str = str(skill).strip()
+                            if skill_str and skill_str != 'nan' and skill_str != 'None':
+                                skills.append(skill_str)
+                        return skills
+                except (SyntaxError, ValueError):
+                    pass
+            
+            # Разделение по запятым как fallback
+            skills = [s.strip() for s in skills_data.split(',')]
+            return [skill for skill in skills if skill]
+        
+        # Для других типов - попытка конвертации в строку
+        return [str(skills_data).strip()] if str(skills_data).strip() else []
+        
+    except Exception as e:
+        print(f"Warning: Error parsing skills {skills_data}: {e}")
+        return []
+
+# Функция нормализации навыков
+def normalize_skill(skill):
+    """
+    Нормализует название навыка:
+    - убирает лишние пробелы
+    - приводит к единому написанию популярных навыков
+    """
+    if not skill or not isinstance(skill, str):
+        return None
+    
+    skill = skill.strip()
+    if not skill:
+        return None
+    
+    # Словарь для нормализации популярных навыков
+    skill_normalization = {
+        'react': 'React',
+        'reactjs': 'React', 
+        'react.js': 'React',
+        'javascript': 'JavaScript',
+        'js': 'JavaScript',
+        'typescript': 'TypeScript',
+        'ts': 'TypeScript',
+        'vue': 'Vue.js',
+        'vuejs': 'Vue.js',
+        'vue.js': 'Vue.js',
+        'nodejs': 'Node.js',
+        'node.js': 'Node.js',
+        'node': 'Node.js',
+        'nextjs': 'Next.js',
+        'next.js': 'Next.js',
+        'next': 'Next.js',
+        'html5': 'HTML',
+        'css3': 'CSS',
+        'restapi': 'REST API',
+        'rest api': 'REST API',
+        'api': 'API',
+        'github': 'Git',  # GitHub часто означает знание Git
+    }
+    
+    skill_lower = skill.lower()
+    return skill_normalization.get(skill_lower, skill)
 
 # Функция для нормализации зарплат в рубли
 def normalize_salary(row):
@@ -228,34 +369,82 @@ def create_business_domain_chart(filtered_df):
         return fig
 
 def create_skills_chart(filtered_df):
-    # Обработка key_skills - разделение строк и подсчет
-    all_skills = []
-    for skills_str in filtered_df['key_skills'].dropna():
-        if isinstance(skills_str, str):
-            skills_list = [s.strip() for s in skills_str.split(',')]
-            all_skills.extend(skills_list)
-    
-    if not all_skills:
-        # Если нет навыков, создаем пустой график
+    try:
+        # Обработка key_skills с новой универсальной функцией парсинга
+        all_skills = []
+        
+        for skills_data in filtered_df['key_skills']:
+            parsed_skills = parse_skills(skills_data)
+            # Нормализация навыков
+            normalized_skills = [normalize_skill(skill) for skill in parsed_skills]
+            # Фильтрация пустых значений
+            valid_skills = [skill for skill in normalized_skills if skill is not None and len(skill) > 1]
+            all_skills.extend(valid_skills)
+        
+        if not all_skills:
+            # Если нет навыков, создаем пустой график
+            fig = px.bar(
+                x=[0], y=["Нет данных"],
+                orientation='h',
+                title="Топ навыки и технологии"
+            )
+            fig.update_layout(height=500)
+            return fig
+        
+        # Подсчет частоты навыков
+        skills_counts = pd.Series(all_skills).value_counts().head(20)  # Увеличил до 20 для лучшего анализа
+        
+        # Фильтрация навыков с минимальной частотой (убираем редкие навыки)
+        min_frequency = max(1, len(filtered_df) // 50)  # Минимум 2% от общего количества вакансий
+        skills_counts = skills_counts[skills_counts >= min_frequency]
+        
+        if len(skills_counts) == 0:
+            fig = px.bar(
+                x=[0], y=["Слишком мало данных"],
+                orientation='h',
+                title="Топ навыки и технологии"
+            )
+            fig.update_layout(height=500)
+            return fig
+        
+        # Создание графика
         fig = px.bar(
-            x=[0], y=["Нет данных"],
+            x=skills_counts.values,
+            y=skills_counts.index,
             orientation='h',
+            title=f"Топ навыки и технологии (мин. {min_frequency} упоминаний)",
+            labels={'x': 'Частота упоминания', 'y': 'Навыки'},
+            color=skills_counts.values,
+            color_continuous_scale='viridis'
+        )
+        
+        # Улучшение внешнего вида
+        fig.update_layout(
+            height=max(500, len(skills_counts) * 25),  # Динамическая высота
+            showlegend=False,
+            xaxis_title="Количество вакансий",
+            yaxis_title="Навыки",
+            font=dict(size=12)
+        )
+        
+        # Обновление hover информации
+        fig.update_traces(
+            hovertemplate="<b>%{y}</b><br>Упоминаний: %{x}<br>Процент: %{customdata:.1f}%<extra></extra>",
+            customdata=(skills_counts.values / len(filtered_df) * 100)
+        )
+        
+        return fig
+        
+    except Exception as e:
+        print(f"Error in create_skills_chart: {e}")
+        # В случае ошибки возвращаем базовый график с ошибкой
+        fig = px.bar(
+            x=[0], y=["Ошибка обработки данных"],
+            orientation='h', 
             title="Топ навыки и технологии"
         )
+        fig.update_layout(height=500)
         return fig
-    
-    skills_counts = pd.Series(all_skills).value_counts().head(15)
-    
-    fig = px.bar(
-        x=skills_counts.values,
-        y=skills_counts.index,
-        orientation='h',
-        title="Топ навыки и технологии",
-        labels={'x': 'Частота упоминания', 'y': 'Навыки'}
-    )
-    
-    fig.update_layout(height=500)
-    return fig
 
 def create_salary_experience_chart(filtered_df):
     try:
