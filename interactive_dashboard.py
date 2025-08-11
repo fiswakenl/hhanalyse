@@ -88,6 +88,7 @@ FILTERS_CONFIG = [
     {'id': 'domain-filter', 'label': 'Бизнес-домен', 'field': 'business_domain'},
     {'id': 'experience-filter', 'label': 'Опыт работы', 'field': 'experience_name'},
     {'id': 'employer-filter', 'label': 'Компания', 'field': 'employer_name'},
+    {'id': 'company-vacancy-count-filter', 'label': 'Количество вакансий у компании', 'field': 'employer_name', 'type': 'vacancy_count'},
     {'id': 'skills-filter', 'label': 'Навыки и технологии', 'field': 'key_skills', 'type': 'array'},
     {'id': 'fe-framework-filter', 'label': 'Фронтенд-фреймворки', 'field': 'fe_framework', 'type': 'array'},
     {'id': 'state-mgmt-filter', 'label': 'Управление состоянием', 'field': 'state_mgmt', 'type': 'array'},
@@ -160,6 +161,52 @@ def get_single_field_options_with_counts(field_name):
     
     return options
 
+# Функция для получения опций фильтра по количеству вакансий у компании
+def get_company_vacancy_count_options():
+    """Получает опции фильтра по количеству вакансий у компании"""
+    # Подсчитываем количество вакансий у каждой компании
+    company_counts = df['employer_name'].value_counts()
+    
+    # Создаем диапазоны количества вакансий
+    ranges = [
+        {"label": "1 вакансия", "value": "1"},
+        {"label": "2-3 вакансии", "value": "2-3"},
+        {"label": "4-5 вакансий", "value": "4-5"},
+        {"label": "6-10 вакансий", "value": "6-10"},
+        {"label": "11-20 вакансий", "value": "11-20"},
+        {"label": "21-50 вакансий", "value": "21-50"},
+        {"label": "50+ вакансий", "value": "50+"}
+    ]
+    
+    # Подсчитываем количество компаний в каждом диапазоне
+    options_with_counts = []
+    for range_info in ranges:
+        range_value = range_info["value"]
+        count = 0
+        
+        if range_value == "1":
+            count = (company_counts == 1).sum()
+        elif range_value == "2-3":
+            count = ((company_counts >= 2) & (company_counts <= 3)).sum()
+        elif range_value == "4-5":
+            count = ((company_counts >= 4) & (company_counts <= 5)).sum()
+        elif range_value == "6-10":
+            count = ((company_counts >= 6) & (company_counts <= 10)).sum()
+        elif range_value == "11-20":
+            count = ((company_counts >= 11) & (company_counts <= 20)).sum()
+        elif range_value == "21-50":
+            count = ((company_counts >= 21) & (company_counts <= 50)).sum()
+        elif range_value == "50+":
+            count = (company_counts > 50).sum()
+        
+        if count > 0:
+            options_with_counts.append({
+                "label": f"{range_info['label']} ({count} компаний)",
+                "value": range_value
+            })
+    
+    return options_with_counts
+
 # Генерация фильтров
 def generate_filters():
     """Генерирует все фильтры для sidebar"""
@@ -172,6 +219,9 @@ def generate_filters():
         if filter_type == 'array':
             # Для массивных полей получаем значения с их частотой
             options = get_array_field_options_with_counts(field, limit=30)
+        elif filter_type == 'vacancy_count':
+            # Для фильтра по количеству вакансий у компании
+            options = get_company_vacancy_count_options()
         else:
             # Для обычных полей получаем значения с их частотой
             options = get_single_field_options_with_counts(field)
@@ -702,7 +752,7 @@ def create_salary_experience_chart(filtered_df):
 
 
 # Функция для фильтрации данных
-def filter_data(company_type, domain, experience, employer, salary_range, skills_filter=None, fe_framework_filter=None, 
+def filter_data(company_type, domain, experience, employer, salary_range, company_vacancy_count=None, skills_filter=None, fe_framework_filter=None, 
                 state_mgmt_filter=None, styling_filter=None, testing_filter=None, api_proto_filter=None):
     try:
         filtered_df = df.copy()
@@ -719,6 +769,10 @@ def filter_data(company_type, domain, experience, employer, salary_range, skills
             
         if employer and len(employer) > 0:
             filtered_df = filtered_df[filtered_df['employer_name'].isin(employer)]
+        
+        # Фильтрация по количеству вакансий у компании
+        if company_vacancy_count and len(company_vacancy_count) > 0:
+            filtered_df = filter_by_company_vacancy_count(filtered_df, company_vacancy_count)
             
         if salary_range and len(salary_range) == 2 and salary_range[0] is not None and salary_range[1] is not None:
             # Применяем фильтр зарплат только если диапазон отличается от полного диапазона
@@ -786,6 +840,41 @@ def filter_by_multiple_array_values(df_to_filter, field_name, target_values):
     
     return df_to_filter[mask]
 
+# Функция для фильтрации по количеству вакансий у компании
+def filter_by_company_vacancy_count(df_to_filter, vacancy_count_ranges):
+    """Фильтрует DataFrame по количеству вакансий у компаний"""
+    if not vacancy_count_ranges or len(vacancy_count_ranges) == 0:
+        return df_to_filter
+    
+    # Подсчитываем количество вакансий у каждой компании
+    company_counts = df['employer_name'].value_counts()
+    
+    # Определяем компании, попадающие в выбранные диапазоны
+    companies_to_include = set()
+    
+    for range_value in vacancy_count_ranges:
+        if range_value == "1":
+            companies = company_counts[company_counts == 1].index.tolist()
+        elif range_value == "2-3":
+            companies = company_counts[(company_counts >= 2) & (company_counts <= 3)].index.tolist()
+        elif range_value == "4-5":
+            companies = company_counts[(company_counts >= 4) & (company_counts <= 5)].index.tolist()
+        elif range_value == "6-10":
+            companies = company_counts[(company_counts >= 6) & (company_counts <= 10)].index.tolist()
+        elif range_value == "11-20":
+            companies = company_counts[(company_counts >= 11) & (company_counts <= 20)].index.tolist()
+        elif range_value == "21-50":
+            companies = company_counts[(company_counts >= 21) & (company_counts <= 50)].index.tolist()
+        elif range_value == "50+":
+            companies = company_counts[company_counts > 50].index.tolist()
+        else:
+            companies = []
+        
+        companies_to_include.update(companies)
+    
+    # Фильтруем DataFrame по компаниям из выбранных диапазонов
+    return df_to_filter[df_to_filter['employer_name'].isin(companies_to_include)]
+
 # Callback для обновления контента и статистики
 @app.callback(
     [Output("tab-content", "children"),
@@ -795,6 +884,7 @@ def filter_by_multiple_array_values(df_to_filter, field_name, target_values):
      Input("domain-filter", "value"),
      Input("experience-filter", "value"),
      Input("employer-filter", "value"),
+     Input("company-vacancy-count-filter", "value"),
      Input("salary-filter", "value"),
      Input("skills-filter", "value"),
      Input("fe-framework-filter", "value"),
@@ -805,7 +895,7 @@ def filter_by_multiple_array_values(df_to_filter, field_name, target_values):
      Input("reset-filters", "n_clicks")],
     prevent_initial_call=False
 )
-def update_content(active_tab, company_type, domain, experience, employer, salary_range, skills_filter, 
+def update_content(active_tab, company_type, domain, experience, employer, company_vacancy_count, salary_range, skills_filter, 
                   fe_framework_filter, state_mgmt_filter, styling_filter, testing_filter, 
                   api_proto_filter, reset_clicks):
     try:
@@ -817,6 +907,7 @@ def update_content(active_tab, company_type, domain, experience, employer, salar
             domain = []
             experience = []
             employer = []
+            company_vacancy_count = []
             salary_range = [SALARY_MIN, SALARY_MAX]
             skills_filter = []
             fe_framework_filter = []
@@ -826,7 +917,7 @@ def update_content(active_tab, company_type, domain, experience, employer, salar
             api_proto_filter = []
         
         # Фильтруем данные
-        filtered_df = filter_data(company_type, domain, experience, employer, salary_range, skills_filter, 
+        filtered_df = filter_data(company_type, domain, experience, employer, salary_range, company_vacancy_count, skills_filter, 
                                 fe_framework_filter, state_mgmt_filter, styling_filter, 
                                 testing_filter, api_proto_filter)
         
@@ -876,6 +967,7 @@ def update_content(active_tab, company_type, domain, experience, employer, salar
      Output("domain-filter", "value"),
      Output("experience-filter", "value"),
      Output("employer-filter", "value"),
+     Output("company-vacancy-count-filter", "value"),
      Output("salary-filter", "value"),
      Output("skills-filter", "value"),
      Output("fe-framework-filter", "value"),
@@ -888,8 +980,8 @@ def update_content(active_tab, company_type, domain, experience, employer, salar
 )
 def reset_filters(n_clicks):
     if n_clicks:
-        return [], [], [], [], [SALARY_MIN, SALARY_MAX], [], [], [], [], [], []
-    return (dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update,
+        return [], [], [], [], [], [SALARY_MIN, SALARY_MAX], [], [], [], [], [], []
+    return (dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update,
             dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update)
 
 if __name__ == "__main__":
