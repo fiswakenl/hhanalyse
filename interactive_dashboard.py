@@ -116,13 +116,15 @@ def get_unique_array_values(field_name, limit=50):
     return values_counts.head(limit).index.tolist()
 
 # Функция для получения опций с подсчетом для массивных полей
-def get_array_field_options_with_counts(field_name):
+def get_array_field_options_with_counts(field_name, filtered_data=None):
     """Получает опции для массивного поля с подсчетом популярности"""
-    if field_name not in df.columns:
+    data_source = filtered_data if filtered_data is not None else df
+    
+    if field_name not in data_source.columns:
         return []
     
     all_values = []
-    for array_data in df[field_name].dropna():
+    for array_data in data_source[field_name].dropna():
         parsed_items = parse_array_field(array_data)
         all_values.extend(parsed_items)
     
@@ -143,13 +145,15 @@ def get_array_field_options_with_counts(field_name):
     return options
 
 # Функция для получения опций с подсчетом для обычных полей
-def get_single_field_options_with_counts(field_name):
+def get_single_field_options_with_counts(field_name, filtered_data=None):
     """Получает опции для обычного поля с подсчетом популярности"""
-    if field_name not in df.columns:
+    data_source = filtered_data if filtered_data is not None else df
+    
+    if field_name not in data_source.columns:
         return []
     
     # Подсчитываем частоту и сортируем по убыванию
-    values_counts = df[field_name].dropna().value_counts()
+    values_counts = data_source[field_name].dropna().value_counts()
     
     options = []
     for value, count in values_counts.items():
@@ -162,10 +166,12 @@ def get_single_field_options_with_counts(field_name):
     return options
 
 # Функция для получения опций фильтра по количеству вакансий у компании
-def get_company_vacancy_count_options():
+def get_company_vacancy_count_options(filtered_data=None):
     """Получает опции фильтра по количеству вакансий у компании"""
+    data_source = filtered_data if filtered_data is not None else df
+    
     # Подсчитываем количество вакансий у каждой компании
-    company_counts = df['employer_name'].value_counts()
+    company_counts = data_source['employer_name'].value_counts()
     
     # Создаем диапазоны количества вакансий
     ranges = [
@@ -240,6 +246,30 @@ def generate_filters():
         ])
     
     return filters
+
+# Генерация фильтров с динамическими опциями на основе отфильтрованных данных
+def generate_dynamic_filter_options(filtered_df):
+    """Генерирует опции для всех фильтров на основе отфильтрованных данных"""
+    filter_options = {}
+    
+    for filter_config in FILTERS_CONFIG:
+        field = filter_config['field']
+        filter_type = filter_config.get('type', 'single')
+        filter_id = filter_config['id']
+        
+        if filter_type == 'array':
+            # Для массивных полей получаем значения с их частотой
+            options = get_array_field_options_with_counts(field, filtered_df)
+        elif filter_type == 'vacancy_count':
+            # Для фильтра по количеству вакансий у компании
+            options = get_company_vacancy_count_options(filtered_df)
+        else:
+            # Для обычных полей получаем значения с их частотой
+            options = get_single_field_options_with_counts(field, filtered_df)
+        
+        filter_options[filter_id] = options
+    
+    return filter_options
 
 # Генерация табов
 def generate_tabs():
@@ -984,6 +1014,87 @@ def reset_filters(n_clicks):
         return [], [], [], [], [], [SALARY_MIN, SALARY_MAX], [], [], [], [], [], []
     return (dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update,
             dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update)
+
+# Callback для обновления опций в фильтрах на основе отфильтрованных данных
+@app.callback(
+    [Output("company-filter", "options"),
+     Output("domain-filter", "options"),
+     Output("experience-filter", "options"),
+     Output("employer-filter", "options"),
+     Output("company-vacancy-count-filter", "options"),
+     Output("skills-filter", "options"),
+     Output("fe-framework-filter", "options"),
+     Output("state-mgmt-filter", "options"),
+     Output("styling-filter", "options"),
+     Output("testing-filter", "options"),
+     Output("api-proto-filter", "options")],
+    [Input("company-filter", "value"),
+     Input("domain-filter", "value"),
+     Input("experience-filter", "value"),
+     Input("employer-filter", "value"),
+     Input("company-vacancy-count-filter", "value"),
+     Input("salary-filter", "value"),
+     Input("skills-filter", "value"),
+     Input("fe-framework-filter", "value"),
+     Input("state-mgmt-filter", "value"),
+     Input("styling-filter", "value"),
+     Input("testing-filter", "value"),
+     Input("api-proto-filter", "value")],
+    prevent_initial_call=False
+)
+def update_filter_options(company_type, domain, experience, employer, company_vacancy_count, salary_range, 
+                         skills_filter, fe_framework_filter, state_mgmt_filter, styling_filter, 
+                         testing_filter, api_proto_filter):
+    try:
+        # Определяем какой фильтр был изменен
+        ctx = callback_context
+        triggered_id = None
+        if ctx.triggered:
+            triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        
+        # Создаем отфильтрованные данные
+        filtered_df = filter_data(company_type, domain, experience, employer, salary_range, company_vacancy_count, 
+                                skills_filter, fe_framework_filter, state_mgmt_filter, styling_filter, 
+                                testing_filter, api_proto_filter)
+        
+        # Получаем актуальные опции для всех фильтров
+        filter_options = generate_dynamic_filter_options(filtered_df)
+        
+        # Определяем какие опции возвращать (не обновляем активно изменяемый фильтр)
+        def get_options_or_no_update(filter_id):
+            if triggered_id == filter_id:
+                return dash.no_update
+            return filter_options.get(filter_id, [])
+        
+        return (
+            get_options_or_no_update("company-filter"),
+            get_options_or_no_update("domain-filter"),
+            get_options_or_no_update("experience-filter"),
+            get_options_or_no_update("employer-filter"),
+            get_options_or_no_update("company-vacancy-count-filter"),
+            get_options_or_no_update("skills-filter"),
+            get_options_or_no_update("fe-framework-filter"),
+            get_options_or_no_update("state-mgmt-filter"),
+            get_options_or_no_update("styling-filter"),
+            get_options_or_no_update("testing-filter"),
+            get_options_or_no_update("api-proto-filter")
+        )
+    except Exception as e:
+        print(f"Error in update_filter_options: {e}")
+        # В случае ошибки возвращаем опции на основе всех данных
+        return (
+            get_single_field_options_with_counts('company_type'),
+            get_single_field_options_with_counts('business_domain'),
+            get_single_field_options_with_counts('experience_name'),
+            get_single_field_options_with_counts('employer_name'),
+            get_company_vacancy_count_options(),
+            get_array_field_options_with_counts('key_skills'),
+            get_array_field_options_with_counts('fe_framework'),
+            get_array_field_options_with_counts('state_mgmt'),
+            get_array_field_options_with_counts('styling'),
+            get_array_field_options_with_counts('testing'),
+            get_array_field_options_with_counts('api_proto')
+        )
 
 if __name__ == "__main__":
     app.run(debug=True, port=8050)
