@@ -116,7 +116,7 @@ def get_unique_array_values(field_name, limit=50):
     return values_counts.head(limit).index.tolist()
 
 # Функция для получения опций с подсчетом для массивных полей
-def get_array_field_options_with_counts(field_name, limit=30):
+def get_array_field_options_with_counts(field_name):
     """Получает опции для массивного поля с подсчетом популярности"""
     if field_name not in df.columns:
         return []
@@ -129,8 +129,8 @@ def get_array_field_options_with_counts(field_name, limit=30):
     if not all_values:
         return []
     
-    # Подсчитываем частоту и сортируем по убыванию
-    values_counts = pd.Series(all_values).value_counts().head(limit)
+    # Подсчитываем частоту и сортируем по убыванию (без лимита)
+    values_counts = pd.Series(all_values).value_counts()
     
     options = []
     for value, count in values_counts.items():
@@ -218,7 +218,7 @@ def generate_filters():
         
         if filter_type == 'array':
             # Для массивных полей получаем значения с их частотой
-            options = get_array_field_options_with_counts(field, limit=30)
+            options = get_array_field_options_with_counts(field)
         elif filter_type == 'vacancy_count':
             # Для фильтра по количеству вакансий у компании
             options = get_company_vacancy_count_options()
@@ -233,6 +233,7 @@ def generate_filters():
                 options=options,
                 value=[],  # Пустой список по умолчанию для multiselect
                 multi=True,  # Включаем множественный выбор
+                searchable=True,  # Включаем поиск для удобства навигации
                 placeholder=f"Выберите {filter_config['label'].lower()}..."
             ),
             html.Br()
