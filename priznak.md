@@ -1,0 +1,7 @@
+- spark, airflow
+- matplotlib, seabor, plotly ...
+- skirt, touch, 
+- класик мл
+   - классификация
+   - временные ряды
+   - кластеризация 1
