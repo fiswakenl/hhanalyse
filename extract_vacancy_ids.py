@@ -45,7 +45,7 @@ AND NOT (
     
     def get_data_science_ml_filter(self) -> str:
         """Возвращает фильтр для Data Science и Machine Learning вакансий"""
-        return """data scientist" OR "data science" OR "machine learning" OR "ml engineer" OR "ai engineer"""
+        return """"data scientist" OR "data science" OR "machine learning" OR "ml engineer" OR "ai engineer" """
     
     async def fetch_vacancies_page(self, text_filter: str, page: int = 0, per_page: int = 100) -> Dict[str, Any]:
         """Получает страницу вакансий из API HH.ru"""

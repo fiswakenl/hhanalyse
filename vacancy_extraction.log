@@ -9,3 +9,50 @@
 2025-08-16 11:33:08,160 - __main__ - INFO - Extraction completed. Total vacancies: 298
 2025-08-16 11:33:08,161 - __main__ - INFO - Saved 298 vacancies to frontend_vacancies.csv
 2025-08-16 11:33:08,161 - __main__ - INFO - Successfully extracted and saved 298 vacancies
+2025-08-16 12:10:55,222 - __main__ - INFO - Using data science/ML filter
+2025-08-16 12:10:55,223 - __main__ - INFO - Starting vacancy extraction...
+2025-08-16 12:10:55,526 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=0&text=data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer "HTTP/1.1 200 OK"
+2025-08-16 12:10:55,529 - __main__ - INFO - Extraction completed. Total vacancies: 0
+2025-08-16 12:10:55,529 - __main__ - WARNING - No vacancies found
+2025-08-16 12:12:01,524 - __main__ - INFO - Using data science/ML filter
+2025-08-16 12:12:01,524 - __main__ - INFO - Starting vacancy extraction...
+2025-08-16 12:12:02,193 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=0&text=data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer "HTTP/1.1 200 OK"
+2025-08-16 12:12:02,195 - __main__ - INFO - Extraction completed. Total vacancies: 0
+2025-08-16 12:12:02,195 - __main__ - WARNING - No vacancies found
+2025-08-16 12:13:47,954 - __main__ - INFO - Using data science/ML filter
+2025-08-16 12:13:47,955 - __main__ - INFO - Starting vacancy extraction...
+2025-08-16 12:13:49,310 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=0&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:13:49,416 - __main__ - INFO - Page 0: extracted 100 vacancies (total: 100)
+2025-08-16 12:13:50,957 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=1&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:13:51,068 - __main__ - INFO - Page 1: extracted 100 vacancies (total: 200)
+2025-08-16 12:13:52,688 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=2&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:13:52,889 - __main__ - INFO - Page 2: extracted 100 vacancies (total: 300)
+2025-08-16 12:13:54,397 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=3&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:13:54,487 - __main__ - INFO - Page 3: extracted 100 vacancies (total: 400)
+2025-08-16 12:13:56,053 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=4&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:13:56,246 - __main__ - INFO - Page 4: extracted 100 vacancies (total: 500)
+2025-08-16 12:13:57,793 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=5&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:13:57,987 - __main__ - INFO - Page 5: extracted 100 vacancies (total: 600)
+2025-08-16 12:13:59,472 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=6&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:13:59,569 - __main__ - INFO - Page 6: extracted 100 vacancies (total: 700)
+2025-08-16 12:14:01,136 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=7&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:14:01,230 - __main__ - INFO - Page 7: extracted 100 vacancies (total: 800)
+2025-08-16 12:14:02,785 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=8&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:14:02,960 - __main__ - INFO - Page 8: extracted 100 vacancies (total: 900)
+2025-08-16 12:14:04,528 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=9&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:14:04,621 - __main__ - INFO - Page 9: extracted 100 vacancies (total: 1000)
+2025-08-16 12:14:06,169 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=10&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:14:06,352 - __main__ - INFO - Page 10: extracted 100 vacancies (total: 1100)
+2025-08-16 12:14:07,850 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=11&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:14:07,940 - __main__ - INFO - Page 11: extracted 100 vacancies (total: 1200)
+2025-08-16 12:14:09,506 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=12&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:14:09,607 - __main__ - INFO - Page 12: extracted 100 vacancies (total: 1300)
+2025-08-16 12:14:11,228 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=13&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:14:11,239 - __main__ - INFO - Page 13: extracted 100 vacancies (total: 1400)
+2025-08-16 12:14:12,750 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=14&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:14:12,770 - __main__ - INFO - Page 14: extracted 100 vacancies (total: 1500)
+2025-08-16 12:14:14,205 - httpx - INFO - HTTP Request: GET https://api.hh.ru/vacancies?per_page=100&page=15&text=%22data+scientist%22+OR+%22data+science%22+OR+%22machine+learning%22+OR+%22ml+engineer%22+OR+%22ai+engineer%22+ "HTTP/1.1 200 OK"
+2025-08-16 12:14:14,209 - __main__ - INFO - Page 15: extracted 43 vacancies (total: 1543)
+2025-08-16 12:14:14,210 - __main__ - INFO - Extraction completed. Total vacancies: 1543
+2025-08-16 12:14:14,216 - __main__ - INFO - Saved 1543 vacancies to ds_vacancies.csv
+2025-08-16 12:14:14,216 - __main__ - INFO - Successfully extracted and saved 1543 vacancies
