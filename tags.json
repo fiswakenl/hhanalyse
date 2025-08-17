@@ -1,16 +1,129 @@
-  {
-    "специализация": [
-      "Classification",
-      "Regression",
-      "Clustering",
-      "Time Series",
-      "NLP/LLM",
-      "Computer Vision",
-      "RecSys",
-      "Антифрод/Security",
-      "Finance/Scoring",
-      "A/B Testing",
-      "MLOps",
-      "Data Engineering"
-    ]
-  }
+{
+  "специализация": [
+    "Classification",
+    "Regression",
+    "Clustering",
+    "Time Series",
+    "NLP/LLM",
+    "Computer Vision",
+    "RecSys",
+    "Антифрод/Security",
+    "Finance/Scoring",
+    "A/B Testing",
+    "MLOps",
+    "Data Engineering"
+  ],
+  "уровень": [
+    "Junior",
+    "Middle", 
+    "Senior",
+    "Lead",
+    "Principal"
+  ],
+  "тип_компании": [
+    "Стартап",
+    "Средний бизнес",
+    "Корпорация",
+    "Консалтинг",
+    "Продуктовая",
+    "Аутсорс"
+  ],
+  "индустрия": [
+    "Финтех",
+    "Банки",
+    "E-commerce",
+    "Ритейл",
+    "Телеком",
+    "Медиа",
+    "Реклама",
+    "IT/Продукт",
+    "Здравоохранение",
+    "Логистика",
+    "Образование"
+  ],
+  "языки_программирования": [
+    "Python",
+    "R",
+    "SQL",
+    "Java",
+    "Scala",
+    "C++"
+  ],
+  "ml_библиотеки": [
+    "sklearn",
+    "xgboost",
+    "lightgbm",
+    "catboost",
+    "tensorflow",
+    "pytorch",
+    "keras",
+    "statsmodels",
+    "scipy"
+  ],
+  "визуализация": [
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "bokeh",
+    "tableau",
+    "power bi",
+    "dash",
+    "streamlit",
+    "grafana"
+  ],
+  "данные_библиотеки": [
+    "pandas",
+    "numpy",
+    "polars",
+    "dask",
+    "spark",
+    "pyspark"
+  ],
+  "nlp_библиотеки": [
+    "nltk",
+    "spacy",
+    "transformers",
+    "hugging face",
+    "openai",
+    "langchain",
+    "gensim",
+    "bert",
+    "gpt"
+  ],
+  "cv_библиотеки": [
+    "opencv",
+    "pillow",
+    "yolo",
+    "detectron2",
+    "albumentations",
+    "torchvision"
+  ],
+  "mlops_инструменты": [
+    "mlflow",
+    "wandb",
+    "dvc",
+    "docker",
+    "kubernetes",
+    "airflow",
+    "jenkins",
+    "git"
+  ],
+  "облачные_платформы": [
+    "aws",
+    "gcp",
+    "azure",
+    "yandex cloud",
+    "databricks",
+    "sagemaker"
+  ],
+  "базы_данных": [
+    "postgresql",
+    "mysql",
+    "clickhouse",
+    "mongodb",
+    "redis",
+    "elasticsearch",
+    "oracle",
+    "vertica"
+  ]
+}
