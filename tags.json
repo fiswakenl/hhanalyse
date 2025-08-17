@@ -1,0 +1,16 @@
+  {
+    "специализация": [
+      "Classification",
+      "Regression",
+      "Clustering",
+      "Time Series",
+      "NLP/LLM",
+      "Computer Vision",
+      "RecSys",
+      "Антифрод/Security",
+      "Finance/Scoring",
+      "A/B Testing",
+      "MLOps",
+      "Data Engineering"
+    ]
+  }
