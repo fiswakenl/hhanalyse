@@ -1048,65 +1048,83 @@ def filter_by_company_vacancy_count(df_to_filter, vacancy_count_ranges):
     [Output("tab-content", "children"),
      Output("filter-stats", "children")],
     [Input("tabs", "active_tab"),
+     # Порядок Input согласно FILTERS_CONFIG
+     Input("job-type-filter", "value"),
+     Input("category-filter", "value"), 
+     Input("level-filter", "value"),
+     Input("seniority-filter", "value"),
      Input("area-filter", "value"),
      Input("experience-filter", "value"),
-     Input("employer-filter", "value"),
-     Input("company-vacancy-count-filter", "value"),
-     Input("salary-filter", "value"),
      Input("specialization-filter", "value"),
-     Input("skills-filter", "value"),
      Input("programming-filter", "value"),
      Input("ml-libraries-filter", "value"),
-     Input("visualization-filter", "value"),
+     Input("skills-filter", "value"),
      Input("data-processing-filter", "value"),
+     Input("visualization-filter", "value"),
      Input("nlp-tools-filter", "value"),
      Input("cv-tools-filter", "value"),
      Input("mlops-tools-filter", "value"),
-     Input("work-format-filter", "value"),
      Input("business-domains-filter", "value"),
-     Input("level-filter", "value"),
-     Input("seniority-filter", "value"),
-     Input("job-type-filter", "value"),
-     Input("category-filter", "value"),
+     Input("work-format-filter", "value"),
+     Input("employer-filter", "value"),
+     Input("company-vacancy-count-filter", "value"),
+     Input("salary-filter", "value"),
      Input("reset-filters", "n_clicks")],
     prevent_initial_call=False
 )
-def update_content(active_tab, area, experience, employer, company_vacancy_count, salary_range, specialization_filter, 
-                  skills_filter, programming_filter, ml_libraries_filter, visualization_filter, data_processing_filter, 
-                  nlp_tools_filter, cv_tools_filter, mlops_tools_filter, work_format_filter, business_domains_filter, 
-                  level_filter, seniority_filter, job_type_filter, category_filter, reset_clicks):
+def update_content(active_tab, job_type_filter, category_filter, level_filter, seniority_filter, area, experience, 
+                  specialization_filter, programming_filter, ml_libraries_filter, skills_filter, data_processing_filter, 
+                  visualization_filter, nlp_tools_filter, cv_tools_filter, mlops_tools_filter, business_domains_filter, 
+                  work_format_filter, employer, company_vacancy_count, salary_range, reset_clicks):
     try:
         ctx = callback_context
         
         # Если нажата кнопка сброса, сбрасываем фильтры
         if ctx.triggered and ctx.triggered[0]['prop_id'] == 'reset-filters.n_clicks':
+            job_type_filter = []
+            category_filter = []
+            level_filter = []
+            seniority_filter = []
             area = []
             experience = []
-            employer = []
-            company_vacancy_count = []
-            salary_range = [SALARY_MIN, SALARY_MAX]
             specialization_filter = []
-            skills_filter = []
             programming_filter = []
             ml_libraries_filter = []
-            visualization_filter = []
+            skills_filter = []
             data_processing_filter = []
+            visualization_filter = []
             nlp_tools_filter = []
             cv_tools_filter = []
             mlops_tools_filter = []
-            work_format_filter = []
             business_domains_filter = []
-            level_filter = []
-            seniority_filter = []
-            job_type_filter = []
-            category_filter = []
+            work_format_filter = []
+            employer = []
+            company_vacancy_count = []
+            salary_range = [SALARY_MIN, SALARY_MAX]
         
-        # Фильтруем данные
-        filtered_df = filter_data(area, experience, employer, salary_range, company_vacancy_count, specialization_filter,
-                                skills_filter, programming_filter, ml_libraries_filter, visualization_filter, 
-                                data_processing_filter, nlp_tools_filter, cv_tools_filter, mlops_tools_filter, 
-                                work_format_filter, business_domains_filter, level_filter, seniority_filter, 
-                                job_type_filter, category_filter)
+        # Фильтруем данные с явными именами параметров
+        filtered_df = filter_data(
+            area=area,
+            experience=experience,
+            employer=employer,
+            salary_range=salary_range,
+            company_vacancy_count=company_vacancy_count,
+            specialization_filter=specialization_filter,
+            skills_filter=skills_filter,
+            programming_filter=programming_filter,
+            ml_libraries_filter=ml_libraries_filter,
+            visualization_filter=visualization_filter,
+            data_processing_filter=data_processing_filter,
+            nlp_tools_filter=nlp_tools_filter,
+            cv_tools_filter=cv_tools_filter,
+            mlops_tools_filter=mlops_tools_filter,
+            work_format_filter=work_format_filter,
+            business_domains_filter=business_domains_filter,
+            level_filter=level_filter,
+            seniority_filter=seniority_filter,
+            job_type_filter=job_type_filter,
+            category_filter=category_filter
+        )
         
         # Статистика фильтрации с защитой от ошибок
         try:
