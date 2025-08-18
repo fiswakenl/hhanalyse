@@ -1,576 +1,230 @@
 import streamlit as st
-import plotly.express as px
-import plotly.graph_objects as go
 import pandas as pd
-import ast
-import json
+import plotly.express as px
+import json, ast
 import numpy as np
 
-# Конфигурация страницы
-st.set_page_config(
-    page_title="HR Analytics Dashboard", 
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="DS Analytics Dashboard", layout="wide")
+st.title("DS Analytics Dashboard — Streamlit")
 
-# Функция для загрузки данных с кешированием
-@st.cache_data
-def load_data():
-    """Загружает данные из parquet файла"""
-    return pd.read_parquet('data/vacancies.parquet')
+# ---------- Utils ----------
+@st.cache_data(show_spinner=False)
+def load_data(path: str) -> pd.DataFrame:
+    df = pd.read_parquet(path)
+    return df.copy()
 
-# Конфигурация всех типов графиков и фильтров
-CHART_CONFIG = {
-    'company': {
-        'title': 'Типы компаний',
-        'chart_func': lambda df: create_single_field_chart(df, 'company_type', 'Распределение вакансий по типам компаний'),
-        'filter_field': 'company_type'
-    },
-    'domain': {
-        'title': 'Бизнес-домены', 
-        'chart_func': lambda df: create_single_field_chart(df, 'business_domain', 'Топ бизнес-домены', top_n=15),
-        'filter_field': 'business_domain'
-    },
-    'skills': {
-        'title': 'Навыки и технологии',
-        'chart_func': lambda df: create_array_field_chart(df, 'key_skills', 'Топ навыки и технологии', normalize_skill),
-        'filter_field': 'key_skills'
-    },
-    'fe_framework': {
-        'title': 'Фронтенд-фреймворки',
-        'chart_func': lambda df: create_array_field_chart(df, 'fe_framework', 'Топ фронтенд-фреймворки'),
-        'filter_field': 'fe_framework'
-    },
-    'state_mgmt': {
-        'title': 'Управление состоянием',
-        'chart_func': lambda df: create_array_field_chart(df, 'state_mgmt', 'Библиотеки управления состоянием'),
-        'filter_field': 'state_mgmt'
-    },
-    'styling': {
-        'title': 'Стилизация',
-        'chart_func': lambda df: create_array_field_chart(df, 'styling', 'Технологии стилизации'),
-        'filter_field': 'styling'
-    },
-    'testing': {
-        'title': 'Тестирование',
-        'chart_func': lambda df: create_array_field_chart(df, 'testing', 'Фреймворки тестирования'),
-        'filter_field': 'testing'
-    },
-    'api_proto': {
-        'title': 'API протоколы',
-        'chart_func': lambda df: create_array_field_chart(df, 'api_proto', 'API протоколы и форматы'),
-        'filter_field': 'api_proto'
-    },
-    'experience': {
-        'title': 'Опыт работы',
-        'chart_func': lambda df: create_single_field_chart(df, 'experience_name', 'Распределение вакансий по категориям опыта'),
-        'filter_field': 'experience_name'
-    },
-    'employers': {
-        'title': 'Компании',
-        'chart_func': lambda df: create_single_field_chart(df, 'employer_name', 'Топ компании по количеству вакансий', top_n=20),
-        'filter_field': 'employer_name'
-    },
-    'salary': {
-        'title': 'Зарплаты',
-        'chart_func': lambda df: create_salary_experience_chart(df),
-        'filter_field': None
-    }
+
+def parse_array_field(x):
+    if x is None:
+        return []
+    try:
+        if pd.isna(x):
+            return []
+    except Exception:
+        pass
+    if isinstance(x, (list, tuple, np.ndarray)):
+        return [str(i).strip() for i in x if str(i).strip() and str(i).strip() not in {"nan", "None"}]
+    if isinstance(x, str):
+        s = x.strip()
+        if not s:
+            return []
+        if s.startswith("[") and s.endswith("]"):
+            for parser in (json.loads, ast.literal_eval):
+                try:
+                    arr = parser(s)
+                    if isinstance(arr, list):
+                        return [str(i).strip() for i in arr if str(i).strip()]
+                except Exception:
+                    pass
+        return [i.strip() for i in s.split(",") if i.strip()]
+    return [str(x).strip()] if str(x).strip() else []
+
+
+@st.cache_data(show_spinner=False)
+def build_value_counts(df: pd.DataFrame, field: str, top_n: int = 20):
+    if field not in df.columns:
+        return pd.Series([], dtype=int)
+    vc = df[field].dropna().value_counts()
+    return vc.head(top_n)
+
+
+@st.cache_data(show_spinner=False)
+def build_array_counts(df: pd.DataFrame, field: str, top_n: int = 20):
+    if field not in df.columns:
+        return pd.Series([], dtype=int)
+    items = []
+    for x in df[field].dropna():
+        items.extend(parse_array_field(x))
+    if not items:
+        return pd.Series([], dtype=int)
+    vc = pd.Series(items).value_counts()
+    return vc.head(top_n)
+
+
+# ---------- Load ----------
+df = load_data("data/ds_vacancies.parquet")
+
+# Safer accessors for DS columns (fallback to names)
+DS_COLUMNS = {
+    "specialization": df.columns[13] if len(df.columns) > 13 else "specialization",
+    "programming_languages": df.columns[14] if len(df.columns) > 14 else "programming_languages",
+    "ml_libraries": df.columns[15] if len(df.columns) > 15 else "ml_libraries",
+    "visualization": df.columns[16] if len(df.columns) > 16 else "visualization",
+    "data_processing": df.columns[17] if len(df.columns) > 17 else "data_processing",
+    "nlp_tools": df.columns[18] if len(df.columns) > 18 else "nlp_tools",
+    "cv_tools": df.columns[19] if len(df.columns) > 19 else "cv_tools",
+    "mlops_tools": df.columns[20] if len(df.columns) > 20 else "mlops_tools",
+    "business_domains": df.columns[21] if len(df.columns) > 21 else "business_domains",
+    "level": df.columns[22] if len(df.columns) > 22 else "level",
+    "seniority": df.columns[23] if len(df.columns) > 23 else "seniority",
+    "job_type": df.columns[24] if len(df.columns) > 24 else "job_type",
+    "category": df.columns[25] if len(df.columns) > 25 else "category",
 }
 
-# Фильтры для sidebar
-FILTERS_CONFIG = [
-    {'id': 'company-filter', 'label': 'Тип компании', 'field': 'company_type'},
-    {'id': 'domain-filter', 'label': 'Бизнес-домен', 'field': 'business_domain'},
-    {'id': 'experience-filter', 'label': 'Опыт работы', 'field': 'experience_name'},
-    {'id': 'employer-filter', 'label': 'Компания', 'field': 'employer_name'},
-    {'id': 'skills-filter', 'label': 'Навыки и технологии', 'field': 'key_skills', 'type': 'array'},
-    {'id': 'fe-framework-filter', 'label': 'Фронтенд-фреймворки', 'field': 'fe_framework', 'type': 'array'},
-    {'id': 'state-mgmt-filter', 'label': 'Управление состоянием', 'field': 'state_mgmt', 'type': 'array'},
-    {'id': 'styling-filter', 'label': 'Стилизация', 'field': 'styling', 'type': 'array'},
-    {'id': 'testing-filter', 'label': 'Тестирование', 'field': 'testing', 'type': 'array'},
-    {'id': 'api-proto-filter', 'label': 'API протоколы', 'field': 'api_proto', 'type': 'array'}
-]
+# Salary normalization (quick version)
+@st.cache_data(show_spinner=False)
+def normalize_salary(df: pd.DataFrame) -> pd.DataFrame:
+    rates = {"RUR": 1, "RUB": 1, "USD": 95, "EUR": 105, "KZT": 0.2, "UZS": 0.0075,
+             "BYR": 0.035, "UAH": 2.5, "KGS": 1.1, "AZN": 55}
+    d = df.copy()
+    if not {"salary_from", "salary_to", "salary_currency", "salary_gross"}.issubset(d.columns):
+        d["salary_from_rub"] = np.nan
+        d["salary_to_rub"] = np.nan
+        return d
+    cur = d["salary_currency"].fillna("RUR").map(rates).fillna(1)
+    d["salary_from_rub"] = d["salary_from"].fillna(0) * cur
+    d["salary_to_rub"] = d["salary_to"].fillna(0) * cur
+    gross_mask = d.get("salary_gross", 0).fillna(0).astype(float) == 1.0
+    d.loc[gross_mask, ["salary_from_rub", "salary_to_rub"]] *= 0.87
+    # bounds
+    for c in ("salary_from_rub", "salary_to_rub"):
+        d.loc[(d[c] < 1000) | (d[c] > 10_000_000), c] = np.nan
+    return d
 
-# Универсальная функция для парсинга массивных полей из разных форматов
-def parse_array_field(array_data):
-    """
-    Парсит массивы из различных форматов данных:
-    - numpy arrays
-    - Python lists
-    - JSON strings  
-    - comma-separated strings
-    - literal eval strings
-    
-    Args:
-        array_data: данные любого формата
-        
-    Returns:
-        list: список строк с элементами
-    """
-    if array_data is None:
-        return []
-    
-    try:
-        if pd.isna(array_data):
-            return []
-    except (TypeError, ValueError):
-        pass
-    
-    try:
-        if isinstance(array_data, np.ndarray):
-            if array_data.size == 0:
-                return []
-            items = []
-            for item in array_data:
-                item_str = str(item).strip()
-                if item_str and item_str != 'nan' and item_str != 'None':
-                    items.append(item_str)
-            return items
-        
-        if isinstance(array_data, (list, tuple)):
-            items = []
-            for item in array_data:
-                item_str = str(item).strip()
-                if item_str and item_str != 'nan' and item_str != 'None':
-                    items.append(item_str)
-            return items
-        
-        if isinstance(array_data, str):
-            array_data = array_data.strip()
-            
-            if not array_data:
-                return []
-            
-            if array_data.startswith('[') and array_data.endswith(']'):
-                try:
-                    parsed = json.loads(array_data)
-                    if isinstance(parsed, list):
-                        items = []
-                        for item in parsed:
-                            item_str = str(item).strip()
-                            if item_str and item_str != 'nan' and item_str != 'None':
-                                items.append(item_str)
-                        return items
-                except (json.JSONDecodeError, ValueError):
-                    pass
-                
-                try:
-                    parsed = ast.literal_eval(array_data)
-                    if isinstance(parsed, list):
-                        items = []
-                        for item in parsed:
-                            item_str = str(item).strip()
-                            if item_str and item_str != 'nan' and item_str != 'None':
-                                items.append(item_str)
-                        return items
-                except (SyntaxError, ValueError):
-                    pass
-            
-            items = [s.strip() for s in array_data.split(',')]
-            return [item for item in items if item]
-        
-        return [str(array_data).strip()] if str(array_data).strip() else []
-        
-    except Exception as e:
-        print(f"Warning: Error parsing array data {array_data}: {e}")
-        return []
 
-# Функция нормализации навыков
-def normalize_skill(skill):
-    """
-    Нормализует название навыка:
-    - убирает лишние пробелы
-    - приводит к единому написанию популярных навыков
-    """
-    if not skill or not isinstance(skill, str):
-        return None
-    
-    skill = skill.strip()
-    if not skill:
-        return None
-    
-    skill_normalization = {
-        'react': 'React',
-        'reactjs': 'React', 
-        'react.js': 'React',
-        'javascript': 'JavaScript',
-        'js': 'JavaScript',
-        'typescript': 'TypeScript',
-        'ts': 'TypeScript',
-        'vue': 'Vue.js',
-        'vuejs': 'Vue.js',
-        'vue.js': 'Vue.js',
-        'nodejs': 'Node.js',
-        'node.js': 'Node.js',
-        'node': 'Node.js',
-        'nextjs': 'Next.js',
-        'next.js': 'Next.js',
-        'next': 'Next.js',
-        'html5': 'HTML',
-        'css3': 'CSS',
-        'restapi': 'REST API',
-        'rest api': 'REST API',
-        'api': 'API',
-        'github': 'Git',
-    }
-    
-    skill_lower = skill.lower()
-    return skill_normalization.get(skill_lower, skill)
+df = normalize_salary(df)
 
-# Функция для нормализации зарплат в рубли
-def normalize_salary(row):
-    try:
-        salary_from = row['salary_from'] 
-        salary_to = row['salary_to']
-        currency = row['salary_currency']
-        is_gross = row['salary_gross']
-        
-        if pd.isna(salary_from) or salary_from <= 0:
-            return pd.Series({'salary_from_rub': None, 'salary_to_rub': None})
-        
-        exchange_rates = {
-            'RUR': 1,
-            'USD': 95,
-            'EUR': 105,
-            'KZT': 0.2,
-            'UZS': 0.0075,
-            'BYR': 0.035,
-            'UAH': 2.5,
-            'KGS': 1.1,
-            'AZN': 55
-        }
-        
-        rate = exchange_rates.get(currency, 1) if pd.notna(currency) else 1
-        
-        salary_from_rub = float(salary_from * rate) if pd.notna(salary_from) and salary_from > 0 else None
-        salary_to_rub = float(salary_to * rate) if pd.notna(salary_to) and salary_to > 0 else None
-        
-        if pd.notna(is_gross) and float(is_gross) == 1.0:
-            if salary_from_rub:
-                salary_from_rub = float(salary_from_rub * 0.87)
-            if salary_to_rub:
-                salary_to_rub = float(salary_to_rub * 0.87)
-        
-        if salary_from_rub and (salary_from_rub < 1000 or salary_from_rub > 10000000):
-            salary_from_rub = None
-        if salary_to_rub and (salary_to_rub < 1000 or salary_to_rub > 10000000):
-            salary_to_rub = None
-            
-        return pd.Series({
-            'salary_from_rub': salary_from_rub,
-            'salary_to_rub': salary_to_rub
-        })
-    except Exception as e:
-        return pd.Series({'salary_from_rub': None, 'salary_to_rub': None})
+# ---------- Sidebar Filters ----------
+with st.sidebar:
+    st.subheader("Фильтры")
+    # Basic filters
+    area_vals = sorted([v for v in df.get("area_name", pd.Series(dtype=str)).dropna().unique()])
+    experience_vals = sorted([v for v in df.get("experience_name", pd.Series(dtype=str)).dropna().unique()])
+    employer_vals = sorted([v for v in df.get("employer_name", pd.Series(dtype=str)).dropna().unique()])
 
-# Функция для получения уникальных значений из массивного поля
-def get_unique_array_values(df, field_name, limit=50):
-    """Получает уникальные значения из массивного поля"""
-    if field_name not in df.columns:
-        return []
-    
-    all_values = []
-    for array_data in df[field_name].dropna():
-        parsed_items = parse_array_field(array_data)
-        all_values.extend(parsed_items)
-    
-    if not all_values:
-        return []
-    
-    values_counts = pd.Series(all_values).value_counts()
-    return values_counts.head(limit).index.tolist()
+    area_sel = st.multiselect("География", area_vals)
+    exp_sel = st.multiselect("Опыт работы", experience_vals)
+    employer_sel = st.multiselect("Компания", employer_vals)
 
-# Функция для создания графиков по одиночным полям
-def create_single_field_chart(filtered_df, field_name, title, top_n=None):
-    """Универсальная функция для создания графиков по одиночным полям"""
-    try:
-        if field_name not in filtered_df.columns:
-            return create_empty_chart(title, "Поле не найдено")
-        
-        field_counts = filtered_df[field_name].dropna().value_counts()
-        if top_n:
-            field_counts = field_counts.head(top_n)
-        
-        if len(field_counts) == 0:
-            return create_empty_chart(title, "Нет данных")
-        
-        fig = px.bar(
-            x=field_counts.values,
-            y=field_counts.index,
-            orientation='h',
-            title=title,
-            labels={'x': 'Количество вакансий', 'y': field_name.replace('_', ' ').title()}
-        )
-        
-        fig.update_layout(height=500)
-        return fig
-        
-    except Exception as e:
-        print(f"Error in create_single_field_chart for {field_name}: {e}")
-        return create_empty_chart(title, "Ошибка обработки данных")
+    # Salary slider
+    sal = df["salary_from_rub"].dropna()
+    s_min = int(sal.min()) if len(sal) else 0
+    s_max = int(sal.max()) if len(sal) else 1_000_000
+    salary_sel = st.slider("Зарплата от (₽)", min_value=s_min, max_value=s_max, value=(s_min, s_max))
 
-# Вспомогательная функция для пустых графиков
-def create_empty_chart(title, message):
-    """Создает пустой график с сообщением"""
-    fig = px.bar(x=[0], y=[message], orientation='h', title=title)
-    fig.update_layout(height=500)
-    return fig
+    # Array filters (example)
+    prog_opts = build_array_counts(df, DS_COLUMNS["programming_languages"], top_n=50).index.tolist()
+    mllib_opts = build_array_counts(df, DS_COLUMNS["ml_libraries"], top_n=50).index.tolist()
+    skill_opts = build_array_counts(df, "key_skills", top_n=50).index.tolist()
 
-# Функция для создания графиков по массивным полям
-def create_array_field_chart(filtered_df, field_name, title, normalizer_func=None, top_n=50):
-    """
-    Универсальная функция для создания графиков по массивным полям.
-    """
-    try:
-        if field_name not in filtered_df.columns:
-            return create_empty_chart(title, "Поле не найдено")
-        
-        all_items = []
-        
-        for array_data in filtered_df[field_name]:
-            parsed_items = parse_array_field(array_data)
-            if normalizer_func:
-                normalized_items = [normalizer_func(item) for item in parsed_items]
-                valid_items = [item for item in normalized_items if item is not None and len(str(item)) > 1]
-            else:
-                valid_items = [item for item in parsed_items if item and len(str(item).strip()) > 1]
-            all_items.extend(valid_items)
-        
-        if not all_items:
-            return create_empty_chart(title, "Нет данных")
-        
-        items_counts = pd.Series(all_items).value_counts().head(top_n)
-        
-        # Убираем фильтрацию по минимальной частоте для полной статистики
-        # min_frequency = max(1, len(filtered_df) // 200)
-        # items_counts = items_counts[items_counts >= min_frequency]
-        
-        if len(items_counts) == 0:
-            return create_empty_chart(title, "Слишком мало данных")
-        
-        fig = px.bar(
-            x=items_counts.values,
-            y=items_counts.index,
-            orientation='h',
-            title=title,
-            labels={'x': 'Частота упоминания', 'y': 'Элементы'},
-            color=items_counts.values,
-            color_continuous_scale='viridis'
-        )
-        
-        fig.update_layout(
-            height=500,
-            showlegend=False,
-            xaxis_title="Количество вакансий",
-            yaxis_title=field_name.replace('_', ' ').title(),
-            font=dict(size=12)
-        )
-        
-        return fig
-        
-    except Exception as e:
-        print(f"Error in create_array_field_chart for {field_name}: {e}")
-        return create_empty_chart(title, "Ошибка обработки данных")
+    prog_sel = st.multiselect("Языки программирования", prog_opts)
+    mllib_sel = st.multiselect("ML библиотеки", mllib_opts)
+    skill_sel = st.multiselect("Навыки", skill_opts)
 
-# Функция для создания графика зарплат по опыту
-def create_salary_experience_chart(filtered_df):
-    try:
-        valid_data = filtered_df[
-            (filtered_df['salary_from_rub'].notna()) & 
-            (filtered_df['experience_name'].notna()) &
-            (filtered_df['experience_name'] != '')
-        ]
-        
-        if len(valid_data) == 0:
-            return create_empty_chart("Средняя зарплата по опыту работы", "Нет данных")
-        
-        salary_by_exp = valid_data.groupby('experience_name').agg({
-            'salary_from_rub': 'mean',
-            'salary_to_rub': 'mean'
-        }).reset_index()
-        
-        fig = go.Figure()
-        
-        if not salary_by_exp['salary_from_rub'].isna().all():
-            fig.add_trace(go.Bar(
-                name='Зарплата от',
-                x=salary_by_exp['experience_name'],
-                y=salary_by_exp['salary_from_rub'].fillna(0),
-                yaxis='y',
-                offsetgroup=1
-            ))
-        
-        if not salary_by_exp['salary_to_rub'].isna().all():
-            fig.add_trace(go.Bar(
-                name='Зарплата до', 
-                x=salary_by_exp['experience_name'],
-                y=salary_by_exp['salary_to_rub'].fillna(0),
-                yaxis='y',
-                offsetgroup=2
-            ))
-        
-        fig.update_layout(
-            title="Средняя зарплата по опыту работы",
-            xaxis_title="Опыт работы",
-            yaxis_title="Средняя зарплата (₽)",
-            height=500,
-            barmode='group'
-        )
-        
-        return fig
-    except Exception as e:
-        print(f"Error in create_salary_experience_chart: {e}")
-        return create_empty_chart("Ошибка загрузки данных", "Ошибка")
+    if st.button("Сбросить фильтры"):
+        st.experimental_rerun()
 
-# Функция для фильтрации данных
-def filter_data(df, filters):
-    """Применяет все фильтры к DataFrame"""
-    filtered_df = df.copy()
-    
-    for filter_key, filter_values in filters.items():
-        if filter_values and len(filter_values) > 0:
-            if filter_key in ['salary_from', 'salary_to']:
-                continue
-            
-            # Найдем конфигурацию фильтра
-            filter_config = None
-            for config in FILTERS_CONFIG:
-                if config['field'] == filter_key:
-                    filter_config = config
-                    break
-            
-            if filter_config:
-                if filter_config.get('type') == 'array':
-                    filtered_df = filter_by_multiple_array_values(filtered_df, filter_key, filter_values)
-                else:
-                    filtered_df = filtered_df[filtered_df[filter_key].isin(filter_values)]
-    
-    # Специальная обработка фильтра зарплат
-    if 'salary_range' in filters and filters['salary_range']:
-        min_salary, max_salary = filters['salary_range']
-        # Включаем записи без зарплаты ИЛИ с зарплатой в диапазоне
-        salary_filter = (
-            (filtered_df['salary_from_rub'].isna()) |
-            ((filtered_df['salary_from_rub'].notna()) &
-             (filtered_df['salary_from_rub'] >= min_salary) & 
-             (filtered_df['salary_from_rub'] <= max_salary))
-        )
-        filtered_df = filtered_df[salary_filter]
-    
-    return filtered_df
+# ---------- Filtering ----------
+filtered = df.copy()
+if area_sel:
+    filtered = filtered[filtered.get("area_name").isin(area_sel)]
+if exp_sel:
+    filtered = filtered[filtered.get("experience_name").isin(exp_sel)]
+if employer_sel:
+    filtered = filtered[filtered.get("employer_name").isin(employer_sel)]
 
-# Функция для фильтрации по множественным значениям в массивном поле
-def filter_by_multiple_array_values(df_to_filter, field_name, target_values):
-    """Фильтрует DataFrame по множественным значениям в массивном поле"""
-    if not target_values or len(target_values) == 0 or field_name not in df_to_filter.columns:
-        return df_to_filter
-    
-    mask = []
-    for array_data in df_to_filter[field_name]:
-        parsed_items = parse_array_field(array_data)
-        has_match = any(value in parsed_items for value in target_values)
-        mask.append(has_match)
-    
-    return df_to_filter[mask]
+# Salary filter (apply only if range narrowed)
+if salary_sel != (s_min, s_max):
+    filtered = filtered[(filtered["salary_from_rub"].notna()) &
+                        (filtered["salary_from_rub"] >= salary_sel[0]) &
+                        (filtered["salary_from_rub"] <= salary_sel[1])]
 
-# Основная логика приложения
-def main():
-    # Загружаем данные
-    df = load_data()
-    
-    # Применяем нормализацию зарплат
-    if 'salary_from_rub' not in df.columns or 'salary_to_rub' not in df.columns:
-        df[['salary_from_rub', 'salary_to_rub']] = df.apply(normalize_salary, axis=1)
-    
-    # Вычисляем границы для слайдера зарплат
-    salary_data = df['salary_from_rub'].dropna()
-    if len(salary_data) > 0:
-        SALARY_MIN = max(0, int(salary_data.min()))
-        SALARY_MAX = int(salary_data.max())
+# Array contains filter
+ def contains_any(parsed_list, targets):
+    return any(t in parsed_list for t in targets)
+
+if prog_sel:
+    mask = filtered[DS_COLUMNS["programming_languages"]].apply(lambda x: contains_any(parse_array_field(x), prog_sel))
+    filtered = filtered[mask]
+if mllib_sel:
+    mask = filtered[DS_COLUMNS["ml_libraries"]].apply(lambda x: contains_any(parse_array_field(x), mllib_sel))
+    filtered = filtered[mask]
+if skill_sel:
+    mask = filtered["key_skills"].apply(lambda x: contains_any(parse_array_field(x), skill_sel))
+    filtered = filtered[mask]
+
+# ---------- KPIs ----------
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Вакансий", len(filtered))
+with col2:
+    s = filtered["salary_from_rub"].dropna()
+    st.metric("Средняя зарплата", f"{int(s.mean()):,} ₽".replace(",", " ") if len(s) else "—")
+with col3:
+    st.metric("Медианная зарплата", f"{int(s.median()):,} ₽".replace(",", " ") if len(s) else "—")
+
+# ---------- Tabs ----------
+t1, t2, t3, t4, t5, t6 = st.tabs([
+    "География", "Навыки", "Языки", "ML библиотеки", "Компании", "Зарплата vs Опыт"
+])
+
+with t1:
+    vc = build_value_counts(filtered, "area_name", 20)
+    if len(vc):
+        fig = px.bar(x=vc.values, y=vc.index, orientation="h", title="Вакансии по городам")
+        st.plotly_chart(fig, use_container_width=True)
     else:
-        SALARY_MIN = 0
-        SALARY_MAX = 1000000
-    
-    # Боковая панель с фильтрами
-    st.sidebar.header("🔍 Фильтры")
-    
-    filters = {}
-    
-    # Создаем фильтры в боковой панели
-    for filter_config in FILTERS_CONFIG:
-        field = filter_config['field']
-        label = filter_config['label']
-        filter_type = filter_config.get('type', 'single')
-        
-        st.sidebar.subheader(label)
-        
-        if filter_type == 'array':
-            # Для массивных полей получаем уникальные значения
-            options = get_unique_array_values(df, field, limit=30)
-            if options:
-                selected = st.sidebar.multiselect(
-                    f"Выберите {label.lower()}:",
-                    options=options,
-                    key=f"{field}_filter"
-                )
-                filters[field] = selected
-        else:
-            # Для обычных полей
-            unique_values = df[field].dropna().unique().tolist()[:50]  # Ограничиваем количество
-            if unique_values:
-                selected = st.sidebar.multiselect(
-                    f"Выберите {label.lower()}:",
-                    options=sorted(unique_values),
-                    key=f"{field}_filter"
-                )
-                filters[field] = selected
-    
-    # Фильтр зарплат
-    st.sidebar.subheader("💰 Диапазон зарплат (₽)")
-    salary_range = st.sidebar.slider(
-        "Выберите диапазон:",
-        min_value=SALARY_MIN,
-        max_value=SALARY_MAX,
-        value=(SALARY_MIN, SALARY_MAX),
-        format="%d"
-    )
-    filters['salary_range'] = salary_range
-    
-    # Кнопка сброса фильтров
-    if st.sidebar.button("🔄 Сбросить все фильтры"):
-        st.rerun()
-    
-    # Применяем фильтры
-    filtered_df = filter_data(df, filters)
-    
-    # Статистика в боковой панели
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("📊 Статистика")
-    st.sidebar.metric("Всего вакансий", len(df))
-    st.sidebar.metric("Отфильтровано", len(filtered_df))
-    
-    # Статистика по зарплатам
-    salary_data = filtered_df['salary_from_rub'].dropna()
-    if len(salary_data) > 0:
-        avg_salary = salary_data.mean()
-        median_salary = salary_data.median()
-        st.sidebar.metric("Средняя зарплата", f"{avg_salary:,.0f} ₽")
-        st.sidebar.metric("Медианная зарплата", f"{median_salary:,.0f} ₽")
-    
-    # Основной контент - система табов
-    tab_names = [config['title'] for config in CHART_CONFIG.values()]
-    tabs = st.tabs(tab_names)
-    
-    for i, (key, config) in enumerate(CHART_CONFIG.items()):
-        with tabs[i]:
-            try:
-                chart = config['chart_func'](filtered_df)
-                st.plotly_chart(chart, use_container_width=True)
-            except Exception as e:
-                st.error(f"Ошибка при создании графика: {str(e)}")
-                st.info("Попробуйте изменить фильтры или обновить страницу")
+        st.info("Нет данных для отображения")
 
-if __name__ == "__main__":
-    main()
+with t2:
+    vc = build_array_counts(filtered, "key_skills", 25)
+    if len(vc):
+        fig = px.bar(x=vc.values, y=vc.index, orientation="h", title="Топ навыков")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Нет данных для отображения")
+
+with t3:
+    vc = build_array_counts(filtered, DS_COLUMNS["programming_languages"], 25)
+    if len(vc):
+        fig = px.bar(x=vc.values, y=vc.index, orientation="h", title="Языки программирования")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Нет данных для отображения")
+
+with t4:
+    vc = build_array_counts(filtered, DS_COLUMNS["ml_libraries"], 25)
+    if len(vc):
+        fig = px.bar(x=vc.values, y=vc.index, orientation="h", title="ML библиотеки")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Нет данных для отображения")
+
+with t5:
+    vc = build_value_counts(filtered, "employer_name", 30)
+    if len(vc):
+        fig = px.bar(x=vc.values, y=vc.index, orientation="h", title="Топ компаний по числу вакансий")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Нет данных для отображения")
+
+with t6:
+    d = filtered[(filtered["salary_from_rub"].notna()) & (filtered["experience_name"].notna())]
+    if len(d):
+        agg = d.groupby("experience_name")["salary_from_rub"].agg(["mean", "median"]).reset_index()
+        fig = px.bar(agg, x="experience_name", y=["mean", "median"], barmode="group", title="Зарплата по опыту")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Нет данных о зарплатах")
+
+st.caption("Made with Streamlit. Кэширование включено (st.cache_data).")

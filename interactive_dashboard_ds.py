@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Input, Output, callback_context, dash_table
+from dash import dcc, html, Input, Output, callback_context, dash_table, no_update
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -30,6 +30,24 @@ DS_COLUMNS = {
 
 # Конфигурация всех типов графиков и фильтров
 CHART_CONFIG = {
+    'job_type': {
+        'title': 'Тип вакансии',
+        'tab_id': 'job-type-tab',
+        'chart_func': lambda df: create_array_field_chart(df, DS_COLUMNS['job_type'], 'Типы вакансий'),
+        'filter_field': DS_COLUMNS['job_type']
+    },
+    'category': {
+        'title': 'Категория',
+        'tab_id': 'category-tab',
+        'chart_func': lambda df: create_array_field_chart(df, DS_COLUMNS['category'], 'Категории позиций'),
+        'filter_field': DS_COLUMNS['category']
+    },
+       'seniority': {
+        'title': 'Сеньорность',
+        'tab_id': 'seniority-tab',
+        'chart_func': lambda df: create_array_field_chart(df, DS_COLUMNS['seniority'], 'Уровни сеньорности'),
+        'filter_field': DS_COLUMNS['seniority']
+    },
     'area': {
         'title': 'География',
         'tab_id': 'area-tab',
@@ -120,24 +138,6 @@ CHART_CONFIG = {
         'chart_func': lambda df: create_array_field_chart(df, DS_COLUMNS['level'], 'Уровни позиций'),
         'filter_field': DS_COLUMNS['level']
     },
-    'seniority': {
-        'title': 'Сеньорность',
-        'tab_id': 'seniority-tab',
-        'chart_func': lambda df: create_array_field_chart(df, DS_COLUMNS['seniority'], 'Уровни сеньорности'),
-        'filter_field': DS_COLUMNS['seniority']
-    },
-    'job_type': {
-        'title': 'Тип вакансии',
-        'tab_id': 'job-type-tab',
-        'chart_func': lambda df: create_array_field_chart(df, DS_COLUMNS['job_type'], 'Типы вакансий'),
-        'filter_field': DS_COLUMNS['job_type']
-    },
-    'category': {
-        'title': 'Категория',
-        'tab_id': 'category-tab',
-        'chart_func': lambda df: create_array_field_chart(df, DS_COLUMNS['category'], 'Категории позиций'),
-        'filter_field': DS_COLUMNS['category']
-    },
     'salary': {
         'title': 'Зарплаты',
         'tab_id': 'salary-tab', 
@@ -147,27 +147,36 @@ CHART_CONFIG = {
 }
 
 
-# Фильтры для sidebar
+# Фильтры для sidebar (отсортированы по важности: от общего к специализированному)
 FILTERS_CONFIG = [
+    # Общие фильтры (наиболее важные)
+    {'id': 'job-type-filter', 'label': 'Тип вакансии', 'field': DS_COLUMNS['job_type'], 'type': 'array'},
+    {'id': 'category-filter', 'label': 'Категория', 'field': DS_COLUMNS['category'], 'type': 'array'},
+    {'id': 'level-filter', 'label': 'Уровень позиции', 'field': DS_COLUMNS['level'], 'type': 'array'},
+    {'id': 'seniority-filter', 'label': 'Сеньорность', 'field': DS_COLUMNS['seniority'], 'type': 'array'},
+    
+    # Базовые фильтры
     {'id': 'area-filter', 'label': 'География', 'field': 'area_name'},
     {'id': 'experience-filter', 'label': 'Опыт работы', 'field': 'experience_name'},
-    {'id': 'employer-filter', 'label': 'Компания', 'field': 'employer_name'},
-    {'id': 'company-vacancy-count-filter', 'label': 'Количество вакансий у компании', 'field': 'employer_name', 'type': 'vacancy_count'},
     {'id': 'specialization-filter', 'label': 'Специализация', 'field': DS_COLUMNS['specialization'], 'type': 'array'},
-    {'id': 'skills-filter', 'label': 'Общие навыки', 'field': 'key_skills', 'type': 'array'},
+    
+    # Технические фильтры
     {'id': 'programming-filter', 'label': 'Языки программирования', 'field': DS_COLUMNS['programming_languages'], 'type': 'array'},
     {'id': 'ml-libraries-filter', 'label': 'ML библиотеки', 'field': DS_COLUMNS['ml_libraries'], 'type': 'array'},
-    {'id': 'visualization-filter', 'label': 'Визуализация', 'field': DS_COLUMNS['visualization'], 'type': 'array'},
+    {'id': 'skills-filter', 'label': 'Общие навыки', 'field': 'key_skills', 'type': 'array'},
+    
+    # Специализированные инструменты
     {'id': 'data-processing-filter', 'label': 'Обработка данных', 'field': DS_COLUMNS['data_processing'], 'type': 'array'},
+    {'id': 'visualization-filter', 'label': 'Визуализация', 'field': DS_COLUMNS['visualization'], 'type': 'array'},
     {'id': 'nlp-tools-filter', 'label': 'NLP инструменты', 'field': DS_COLUMNS['nlp_tools'], 'type': 'array'},
     {'id': 'cv-tools-filter', 'label': 'Computer Vision', 'field': DS_COLUMNS['cv_tools'], 'type': 'array'},
     {'id': 'mlops-tools-filter', 'label': 'MLOps инструменты', 'field': DS_COLUMNS['mlops_tools'], 'type': 'array'},
-    {'id': 'work-format-filter', 'label': 'Формат работы', 'field': 'work_format', 'type': 'array'},
+    
+    # Организационные фильтры
     {'id': 'business-domains-filter', 'label': 'Бизнес-домены', 'field': DS_COLUMNS['business_domains'], 'type': 'array'},
-    {'id': 'level-filter', 'label': 'Уровень позиции', 'field': DS_COLUMNS['level'], 'type': 'array'},
-    {'id': 'seniority-filter', 'label': 'Сеньорность', 'field': DS_COLUMNS['seniority'], 'type': 'array'},
-    {'id': 'job-type-filter', 'label': 'Тип вакансии', 'field': DS_COLUMNS['job_type'], 'type': 'array'},
-    {'id': 'category-filter', 'label': 'Категория', 'field': DS_COLUMNS['category'], 'type': 'array'}
+    {'id': 'work-format-filter', 'label': 'Формат работы', 'field': 'work_format', 'type': 'array'},
+    {'id': 'employer-filter', 'label': 'Компания', 'field': 'employer_name'},
+    {'id': 'company-vacancy-count-filter', 'label': 'Количество вакансий у компании', 'field': 'employer_name', 'type': 'vacancy_count'}
 ]
 
 # Функция для получения уникальных значений из массивного поля
@@ -319,6 +328,23 @@ def generate_filters():
         ])
     
     return filters
+
+# Функция для сравнения списков опций
+def options_are_equal(options1, options2):
+    """Сравнивает два списка опций для определения изменений"""
+    if options1 is None and options2 is None:
+        return True
+    if options1 is None or options2 is None:
+        return False
+    if len(options1) != len(options2):
+        return False
+    
+    # Сравниваем каждую опцию
+    for opt1, opt2 in zip(options1, options2):
+        if opt1.get('value') != opt2.get('value') or opt1.get('label') != opt2.get('label'):
+            return False
+    
+    return True
 
 # Генерация фильтров с динамическими опциями на основе отфильтрованных данных
 def generate_dynamic_filter_options(filtered_df):
@@ -607,6 +633,9 @@ def normalize_salary(row):
 # Применяем нормализацию
 df[['salary_from_rub', 'salary_to_rub']] = df.apply(normalize_salary, axis=1)
 
+# Глобальная переменная для хранения предыдущих опций фильтров
+_previous_filter_options = {}
+
 # Вычисляем безопасные границы для слайдера зарплат
 salary_data = df['salary_from_rub'].dropna()
 if len(salary_data) > 0:
@@ -626,6 +655,14 @@ CARD_STYLE = {
     "box-shadow": "0 4px 6px 0 rgba(0, 0, 0, 0.18)",
     "margin-bottom": "24px",
     "padding": "16px"
+}
+
+SIDEBAR_STYLE = {
+    "box-shadow": "0 4px 6px 0 rgba(0, 0, 0, 0.18)",
+    "margin-bottom": "24px",
+    "padding": "16px",
+    "max-height": "85vh",
+    "overflow-y": "auto"
 }
 
 # Layout приложения  
@@ -665,7 +702,7 @@ app.layout = dbc.Container([
                     
                     html.Div(id="filter-stats")
                 ])
-            ], style=CARD_STYLE)
+            ], style=SIDEBAR_STYLE)
         ], width=3),
         
         # Основной контент
@@ -1111,18 +1148,88 @@ def update_content(active_tab, area, experience, employer, company_vacancy_count
         error_stats = [html.P("Ошибка загрузки статистики")]
         return error_content, error_stats
 
-# Callback для сброса фильтров - упрощенная версия 
-# (полная версия требует обновления всех Output'ов для всех новых фильтров)
-# @app.callback(...) 
-# def reset_filters(n_clicks): 
-#     # Временно отключено для упрощения
-
-# Callback для обновления опций в фильтрах - упрощенная версия
-# (полная версия требует обновления всех Input'ов и Output'ов для всех новых фильтров)
-# Пока что фильтры будут использовать статические опции при загрузке
-# @app.callback(...) 
-# def update_filter_options(...): 
-#     # Временно отключено для упрощения
+# Callback для обновления опций в фильтрах на основе отфильтрованных данных
+@app.callback(
+    [Output(config['id'], 'options') for config in FILTERS_CONFIG],
+    [Input(config['id'], 'value') for config in FILTERS_CONFIG] + [Input('salary-filter', 'value')],
+    prevent_initial_call=True
+)
+def update_filter_options(*args):
+    """Обновляет опции во всех фильтрах на основе текущих фильтров"""
+    global _previous_filter_options
+    
+    try:
+        ctx = callback_context
+        if not ctx.triggered:
+            # Возвращаем текущие опции без изменений
+            return [no_update] * len(FILTERS_CONFIG)
+        
+        # Проверяем, что именно изменилось
+        triggered_prop = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+        
+        # Получаем значения всех фильтров
+        filter_values = args[:-1]  # Все кроме последнего (salary-filter)
+        salary_range = args[-1]   # Последний аргумент - salary range
+        
+        # Создаем словарь значений фильтров
+        current_filters = {}
+        for i, config in enumerate(FILTERS_CONFIG):
+            current_filters[config['id']] = filter_values[i] if filter_values[i] else []
+        
+        # Фильтруем данные на основе всех текущих фильтров
+        filtered_df = filter_data(
+            area=current_filters.get('area-filter', []),
+            experience=current_filters.get('experience-filter', []),
+            employer=current_filters.get('employer-filter', []),
+            salary_range=salary_range,
+            company_vacancy_count=current_filters.get('company-vacancy-count-filter', []),
+            specialization_filter=current_filters.get('specialization-filter', []),
+            skills_filter=current_filters.get('skills-filter', []),
+            programming_filter=current_filters.get('programming-filter', []),
+            ml_libraries_filter=current_filters.get('ml-libraries-filter', []),
+            visualization_filter=current_filters.get('visualization-filter', []),
+            data_processing_filter=current_filters.get('data-processing-filter', []),
+            nlp_tools_filter=current_filters.get('nlp-tools-filter', []),
+            cv_tools_filter=current_filters.get('cv-tools-filter', []),
+            mlops_tools_filter=current_filters.get('mlops-tools-filter', []),
+            work_format_filter=current_filters.get('work-format-filter', []),
+            business_domains_filter=current_filters.get('business-domains-filter', []),
+            level_filter=current_filters.get('level-filter', []),
+            seniority_filter=current_filters.get('seniority-filter', []),
+            job_type_filter=current_filters.get('job-type-filter', []),
+            category_filter=current_filters.get('category-filter', [])
+        )
+        
+        # Генерируем новые опции для всех фильтров
+        new_filter_options = generate_dynamic_filter_options(filtered_df)
+        
+        # Сравниваем с предыдущими опциями и обновляем только изменившиеся
+        results = []
+        something_changed = False
+        
+        for config in FILTERS_CONFIG:
+            filter_id = config['id']
+            new_options = new_filter_options.get(filter_id, [])
+            previous_options = _previous_filter_options.get(filter_id, [])
+            
+            # Если опции изменились или это первый запуск
+            if not options_are_equal(new_options, previous_options):
+                results.append(new_options)
+                _previous_filter_options[filter_id] = new_options
+                something_changed = True
+            else:
+                results.append(no_update)
+        
+        # Если ничего не изменилось, возвращаем no_update для всех
+        if not something_changed:
+            return [no_update] * len(FILTERS_CONFIG)
+        
+        return results
+        
+    except Exception as e:
+        print(f"Error in update_filter_options: {e}")
+        # В случае ошибки возвращаем no_update для всех фильтров
+        return [no_update] * len(FILTERS_CONFIG)
 
 if __name__ == "__main__":
     app.run(debug=True, port=8050)
